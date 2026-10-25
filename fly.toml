@@ -1,6 +1,7 @@
 # Fly.io config for the API. Deploy from the repository root: fly deploy --ha=false
 app = "couchwave-api"
-primary_region = "mad"
+# Paris: closest region to Portugal that still accepts new machines (mad is deprecated)
+primary_region = "cdg"
 
 [build]
   dockerfile = "apps/api/Dockerfile"
