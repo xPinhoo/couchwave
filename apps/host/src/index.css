@@ -135,9 +135,195 @@ body {
   }
 }
 
+/* Buttons */
+
+.primary-button {
+  padding: 1rem 2.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: var(--text);
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.link-button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.start {
+  margin-top: 2rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* Trivia */
+
+.trivia {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 2rem;
+  min-height: 100vh;
+  padding: 2rem 4rem;
+}
+
+.trivia-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timer {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: 4px solid var(--accent);
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.prompt {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: var(--choice);
+  font-size: clamp(1.25rem, 2.5vw, 2rem);
+  font-weight: 700;
+  transition:
+    opacity 300ms,
+    transform 300ms;
+}
+
+.choice.dimmed {
+  opacity: 0.25;
+}
+
+.choice.correct {
+  transform: scale(1.03);
+  box-shadow: 0 0 0 4px var(--text);
+}
+
+.choice-symbol {
+  font-size: 1.5em;
+}
+
+.choice-text {
+  flex: 1;
+}
+
+.choice-count {
+  min-width: 2.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: #0006;
+  text-align: center;
+}
+
+.trivia-footer {
+  color: var(--muted);
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.leaderboard,
+.podium {
+  display: grid;
+  gap: 0.5rem;
+  width: min(100%, 40rem);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.leaderboard li,
+.podium li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  font-size: 1.5rem;
+}
+
+.score {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.gained {
+  color: #46d39a;
+  font-weight: 600;
+}
+
+.final {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2rem;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.podium .place {
+  width: 2rem;
+  color: var(--muted);
+}
+
+.podium li span:nth-child(2) {
+  flex: 1;
+}
+
+.podium .winner {
+  border: 2px solid var(--accent-2);
+  font-size: 2rem;
+}
+
 @media (max-width: 800px) {
   .lobby {
     grid-template-columns: 1fr;
     padding: 2rem 1rem;
+  }
+
+  .trivia {
+    padding: 1rem;
+  }
+
+  .choices {
+    grid-template-columns: 1fr;
   }
 }

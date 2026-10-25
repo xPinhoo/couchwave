@@ -4,17 +4,20 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { initialRoomCode } from './src/config';
 import { JoinScreen } from './src/screens/JoinScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
+import { TriviaScreen } from './src/screens/TriviaScreen';
 import { colors } from './src/theme';
 import { useController } from './src/useController';
 
 export default function App() {
-  const { state, join, reset } = useController();
+  const { state, game, join, answer, reset } = useController();
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="light" />
-        {state.status === 'lobby' ? (
+        {state.status === 'lobby' && state.lobby.status === 'playing' && game ? (
+          <TriviaScreen game={game} connected={state.connected} onAnswer={answer} />
+        ) : state.status === 'lobby' ? (
           <LobbyScreen playerId={state.playerId} lobby={state.lobby} connected={state.connected} />
         ) : state.status === 'rejoining' ? (
           <View style={styles.centered}>

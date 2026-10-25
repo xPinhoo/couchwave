@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PLAYER_NAME_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from './constants.js';
+import { TRIVIA_CHOICES } from './games.js';
 
 export const roomCodeSchema = z
   .string()
@@ -25,3 +26,13 @@ export const rejoinRoomSchema = z.object({
 });
 
 export type RejoinRoomPayload = z.input<typeof rejoinRoomSchema>;
+
+export const answerSchema = z.object({
+  choice: z
+    .number()
+    .int()
+    .min(0)
+    .max(TRIVIA_CHOICES - 1),
+});
+
+export type AnswerPayload = z.input<typeof answerSchema>;

@@ -5,10 +5,11 @@ import {
   generateRoomCode,
   removePlayer,
   setPlayerConnected,
+  setRoomStatus,
   type Player,
   type Room,
 } from '@couchwave/engine';
-import type { ErrorCode } from '@couchwave/shared';
+import type { ErrorCode, RoomStatus } from '@couchwave/shared';
 import { Injectable } from '@nestjs/common';
 
 interface PlayerSession {
@@ -57,6 +58,15 @@ export class RoomsService {
 
   get(code: string): Room | undefined {
     return this.rooms.get(code);
+  }
+
+  setStatus(code: string, status: RoomStatus): Room | undefined {
+    const room = this.rooms.get(code);
+    if (!room) return undefined;
+
+    const updated = setRoomStatus(room, status);
+    this.rooms.set(code, updated);
+    return updated;
   }
 
   join(code: string, player: { id: string; name: string }, connectionId: string): JoinOutcome {

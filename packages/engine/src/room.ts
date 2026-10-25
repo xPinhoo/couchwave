@@ -4,6 +4,7 @@ import {
   ROOM_CODE_LENGTH,
   type ErrorCode,
   type LobbyState,
+  type RoomStatus,
 } from '@couchwave/shared';
 
 export interface Player {
@@ -12,8 +13,6 @@ export interface Player {
   connected: boolean;
   joinedAt: number;
 }
-
-export type RoomStatus = 'lobby' | 'playing';
 
 export interface Room {
   code: string;
@@ -67,9 +66,14 @@ export function setPlayerConnected(room: Room, playerId: string, connected: bool
   };
 }
 
+export function setRoomStatus(room: Room, status: RoomStatus): Room {
+  return { ...room, status };
+}
+
 export function toLobbyState(room: Room): LobbyState {
   return {
     roomCode: room.code,
+    status: room.status,
     players: room.players.map(({ id, name, connected }) => ({ id, name, connected })),
     maxPlayers: MAX_PLAYERS,
   };

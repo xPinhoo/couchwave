@@ -6,11 +6,12 @@ import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
-import { RECONNECT_GRACE_MS } from '../src/rooms/rooms.constants.js';
+import { RECONNECT_GRACE_MS, TRIVIA_CONFIG } from '../src/rooms/rooms.constants.js';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const GRACE_MS = 300;
+const QUESTION_MS = 400;
 
 describe('Rooms (e2e)', () => {
   let app: INestApplication;
@@ -21,6 +22,8 @@ describe('Rooms (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(RECONNECT_GRACE_MS)
       .useValue(GRACE_MS)
+      .overrideProvider(TRIVIA_CONFIG)
+      .useValue({ rounds: 2, questionMs: QUESTION_MS, revealMs: 150 })
       .compile();
     app = moduleRef.createNestApplication({ logger: false });
     await app.listen(0, '127.0.0.1');
@@ -202,6 +205,128 @@ describe('Rooms (e2e)', () => {
     expect(await late.emitWithAck('room:join', { roomCode, name: 'Rui' })).toEqual({
       ok: false,
       error: 'ROOM_NOT_FOUND',
+    });
+  });
+
+  describe('trivia', () => {
+    type HostUpdate = Parameters<ServerToClientEvents['game:host']>[0];
+    type PlayerUpdate = Parameters<ServerToClientEvents['game:player']>[0];
+
+    /** Resolves with the first update matching `match`, failing after `timeoutMs`. */
+    function waitFor<U>(
+      client: Client,
+      event: 'game:host' | 'game:player',
+      match: (update: U) => boolean,
+      timeoutMs = 3_000,
+    ): Promise<U> {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`No matching ${event}`)), timeoutMs);
+        const listener = (update: U) => {
+          if (!match(update)) return;
+          clearTimeout(timer);
+          client.off(event, listener as never);
+          resolve(update);
+        };
+        client.on(event, listener as never);
+      });
+    }
+
+    const hostSees = (host: Client, match: (u: HostUpdate) => boolean) =>
+      waitFor<HostUpdate>(host, 'game:host', match);
+    const playerSees = (player: Client, match: (u: PlayerUpdate) => boolean) =>
+      waitFor<PlayerUpdate>(player, 'game:player', match);
+
+    async function startedGame() {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      const hostQ1 = hostSees(host, (u) => u.view.phase === 'question');
+      const anaQ1 = playerSees(ana.client, (u) => u.view.phase === 'question');
+      expect(await host.emitWithAck('game:start')).toEqual({ ok: true, data: null });
+      return { host, roomCode, ana, rui, hostQ1: await hostQ1, anaQ1: await anaQ1 };
+    }
+
+    it('only lets the host start, and only with players in the room', async () => {
+      const { host, roomCode } = await createRoom();
+      expect(await host.emitWithAck('game:start')).toEqual({
+        ok: false,
+        error: 'NOT_ENOUGH_PLAYERS',
+      });
+
+      const ana = await joinAs(roomCode, 'Ana');
+      expect(await ana.client.emitWithAck('game:start')).toEqual({ ok: false, error: 'NOT_HOST' });
+    });
+
+    it('sends the host the question and each player only their choices', async () => {
+      const { hostQ1, anaQ1 } = await startedGame();
+
+      expect(hostQ1.view).toMatchObject({
+        round: 1,
+        totalRounds: 2,
+        playerCount: 2,
+        correctChoice: null,
+      });
+      expect(hostQ1.view.prompt).not.toBe('');
+      expect(hostQ1.serverTime).toBeTypeOf('number');
+      expect(anaQ1.view.choices).toEqual(hostQ1.view.choices);
+      expect(anaQ1.view).not.toHaveProperty('prompt');
+      expect(anaQ1.view).not.toHaveProperty('correctChoice');
+    });
+
+    it('reveals early once everyone answered, then plays to the end', async () => {
+      const { host, ana, rui, hostQ1 } = await startedGame();
+
+      const oneAnswered = hostSees(host, (u) => u.view.answeredCount === 1);
+      expect(await ana.client.emitWithAck('game:answer', { choice: 0 })).toEqual({
+        ok: true,
+        data: null,
+      });
+      await oneAnswered;
+
+      const reveal = hostSees(host, (u) => u.view.phase === 'reveal');
+      const ruiResult = playerSees(rui.client, (u) => u.view.phase === 'reveal');
+      await rui.client.emitWithAck('game:answer', { choice: 1 });
+
+      const { view } = await reveal;
+      expect(view.correctChoice).toBeTypeOf('number');
+      expect(view.choiceCounts?.reduce((a, b) => a + b, 0)).toBe(2);
+      // Revealed well before the 400ms question timer would have run out
+      expect(Date.now() - hostQ1.serverTime).toBeLessThan(QUESTION_MS);
+      expect((await ruiResult).view.lastResult).toEqual({
+        correct: view.correctChoice === 1,
+        points: expect.any(Number),
+      });
+
+      // Nobody answers round 2: the timer moves the game on to the end
+      const finished = await hostSees(host, (u) => u.view.phase === 'finished');
+      expect(finished.view.leaderboard.map((e) => e.playerId).sort()).toEqual(
+        [ana.playerId, rui.playerId].sort(),
+      );
+    });
+
+    it('blocks new players mid-game and returns to the lobby when the host ends it', async () => {
+      const { host, roomCode } = await startedGame();
+
+      const late = await connect();
+      expect(await late.emitWithAck('room:join', { roomCode, name: 'Late' })).toEqual({
+        ok: false,
+        error: 'GAME_IN_PROGRESS',
+      });
+
+      const backInLobby = next(host, 'lobby:update');
+      expect(await host.emitWithAck('game:end')).toEqual({ ok: true, data: null });
+      expect((await backInLobby).status).toBe('lobby');
+    });
+
+    it('sends a player who reconnects mid-game the current screen right away', async () => {
+      const { ana } = await startedGame();
+      ana.client.disconnect();
+
+      const phone = await connect();
+      const screen = playerSees(phone, () => true);
+      await phone.emitWithAck('room:rejoin', { sessionToken: ana.sessionToken });
+      expect((await screen).view).toMatchObject({ round: 1, phase: 'question' });
     });
   });
 });

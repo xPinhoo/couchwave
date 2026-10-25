@@ -29,6 +29,18 @@ packages/
   (30 s by default). The controller sends `room:rejoin` with the token whenever its socket
   reconnects and gets the same seat back. If a newer connection reclaims the seat, the old
   socket is kicked, and its late disconnect is ignored.
+- **Games are pure state machines.** Each mini-game implements `GameModule` in
+  `packages/engine`: `init`, `onInput`, `onTick`, plus a `hostView` for the TV and a private
+  `playerView` per phone. The API runs a 250 ms loop per active room and broadcasts only when
+  the state changes.
+- **Countdowns line up across devices.** Every game update carries the server's clock, and
+  clients correct for their own clock being ahead or behind.
+
+## Games
+
+**Quick-fire trivia** has 8 questions. The question is shown on the TV, and each phone shows
+four coloured answer buttons. A correct answer scores 500 points, plus up to 500 more for
+speed. The reveal happens as soon as everyone has answered, or when the 15 s timer runs out.
 
 ## Getting started
 
@@ -131,8 +143,8 @@ If a name is already taken (the Fly app or a `*.vercel.app` domain), update the 
 
 - [x] **M0** Monorepo, CI, create/join rooms with a live lobby
 - [x] **M1a** Reconnection with a grace period
-- [ ] **M1b** Deploy API + web apps
-- [ ] **M2** First mini-game: quick-fire trivia
+- [x] **M1b** Deploy API + web apps
+- [x] **M2** First mini-game: quick-fire trivia
 - [ ] **M3** Native controller polish: QR scanning, haptics
 - [ ] **M4** Bluff and draw-and-guess games
 - [ ] **M5** Accounts, custom question packs, game history

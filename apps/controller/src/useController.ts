@@ -1,9 +1,11 @@
 import type {
   ClientToServerEvents,
   ErrorCode,
+  GameUpdate,
   JoinedRoom,
   LobbyState,
   ServerToClientEvents,
+  TriviaPlayerView,
 } from '@couchwave/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -21,7 +23,17 @@ export type ControllerState =
   | { status: 'lobby'; playerId: string; lobby: LobbyState; connected: boolean }
   | { status: 'closed' };
 
+export interface PlayerGame {
+  update: GameUpdate<TriviaPlayerView>;
+  /** Local time the update arrived, for lining up the countdown with the server clock. */
+  receivedAt: number;
+}
+
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
+  NOT_HOST: 'Only the host can do that.',
+  NOT_A_PLAYER: 'Join the room first.',
+  NOT_ENOUGH_PLAYERS: 'Not enough players to start.',
+  NO_GAME: 'No game is running.',
   INVALID_PAYLOAD: 'Check the room code and your name.',
   ROOM_NOT_FOUND: "That room doesn't exist.",
   ROOM_FULL: 'That room is full.',
@@ -43,6 +55,7 @@ export function useController() {
   const [state, setState] = useState<ControllerState>(() =>
     loadSession() ? { status: 'rejoining' } : { status: 'idle' },
   );
+  const [game, setGame] = useState<PlayerGame | null>(null);
 
   useEffect(() => {
     const socket: ControllerSocket = io(API_URL, { transports: ['websocket'] });
@@ -79,11 +92,14 @@ export function useController() {
       setState((prev) => (prev.status === 'lobby' ? { ...prev, connected: false } : prev));
     });
 
-    socket.on('lobby:update', (lobby) =>
-      setState((prev) => (prev.status === 'lobby' ? { ...prev, lobby } : prev)),
-    );
+    socket.on('lobby:update', (lobby) => {
+      setState((prev) => (prev.status === 'lobby' ? { ...prev, lobby } : prev));
+      if (lobby.status === 'lobby') setGame(null);
+    });
+    socket.on('game:player', (update) => setGame({ update, receivedAt: Date.now() }));
     socket.on('room:closed', () => {
       clearSession();
+      setGame(null);
       setState({ status: 'closed' });
     });
 
@@ -117,11 +133,21 @@ export function useController() {
     }
   }, []);
 
+  const answer = useCallback((choice: number) => {
+    // Show the choice straight away; the server's next update confirms it
+    setGame((prev) =>
+      prev
+        ? { ...prev, update: { ...prev.update, view: { ...prev.update.view, myChoice: choice } } }
+        : prev,
+    );
+    void socketRef.current?.emitWithAck('game:answer', { choice });
+  }, []);
+
   const reset = useCallback(() => {
     // The server disconnects everyone when a room closes, so start a fresh connection
     socketRef.current?.connect();
     setState({ status: 'idle' });
   }, []);
 
-  return { state, join, reset };
+  return { state, game, join, answer, reset };
 }

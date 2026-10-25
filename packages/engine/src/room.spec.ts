@@ -85,6 +85,7 @@ describe('toLobbyState', () => {
   it('exposes only public player fields', () => {
     expect(toLobbyState(roomWith('Ana'))).toEqual({
       roomCode: 'ABCD',
+      status: 'lobby',
       players: [{ id: 'Ana', name: 'Ana', connected: true }],
       maxPlayers: MAX_PLAYERS,
     });
