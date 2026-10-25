@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# env files
+.env
+.env*.local
+
+# editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log

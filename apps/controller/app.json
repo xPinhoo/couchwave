@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Couchwave",
+    "slug": "couchwave",
+    "scheme": "couchwave",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f0b1e",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.couchwave.controller"
+    },
+    "android": {
+      "package": "app.couchwave.controller",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "couchwave",
+  "private": true,
+  "description": "Party games on the big screen, played with your phone as the controller.",
+  "packageManager": "npm@11.10.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "typecheck": "turbo run typecheck",
+    "lint": "oxlint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "oxlint": "^1.89.0",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.10",
+    "typescript": "~6.0.3"
+  }
+}

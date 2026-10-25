@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@couchwave/api"],
+      "port": 3000
+    },
+    {
+      "name": "host",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@couchwave/host"],
+      "port": 5173
+    },
+    {
+      "name": "controller-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web", "--workspace", "@couchwave/controller"],
+      "port": 8081
+    }
+  ]
+}
