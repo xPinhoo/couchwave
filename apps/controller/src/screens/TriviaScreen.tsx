@@ -45,10 +45,10 @@ export function TriviaScreen({ game, connected, isLeader, onAnswer, onEnd }: Tri
             onPress={onEnd}
             style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
           >
-            <Text style={styles.primaryText}>Back to lobby</Text>
+            <Text style={styles.primaryText}>Back to the games</Text>
           </Pressable>
         ) : (
-          <Text style={styles.muted}>Waiting for the host to start another round…</Text>
+          <Text style={styles.muted}>Waiting for the host to pick the next game…</Text>
         )}
       </View>
     );

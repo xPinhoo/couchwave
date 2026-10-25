@@ -1,22 +1,40 @@
-import { CHOICE_STYLES, type LobbyState, type TriviaHostView } from '@couchwave/shared';
+import {
+  CHOICE_STYLES,
+  type LobbyState,
+  type PublicPlayer,
+  type TriviaHostView,
+} from '@couchwave/shared';
 import type { CSSProperties } from 'react';
 import type { HostGame } from '../useHostRoom';
 import { useCountdown } from '../useCountdown';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface TriviaHostProps {
   game: HostGame;
   lobby: LobbyState;
 }
 
-/** Display only: the leader ends the game or goes back to the lobby from their phone. */
+type PlayerLookup = (id: string) => PublicPlayer | undefined;
+
+/** Avatar and name; players who left mid-game show as a plain "Player". */
+function PlayerTag({ player, size = 32 }: { player: PublicPlayer | undefined; size?: number }) {
+  return (
+    <span className="player-tag">
+      {player && <PlayerAvatar avatar={player.avatar} size={size} />}
+      {player?.name ?? 'Player'}
+    </span>
+  );
+}
+
+/** Display only: the leader ends the game or goes back to the library from their phone. */
 export function TriviaHost({ game, lobby }: TriviaHostProps) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
-  const nameOf = (id: string) => lobby.players.find((p) => p.id === id)?.name ?? 'Player';
+  const playerOf: PlayerLookup = (id) => lobby.players.find((p) => p.id === id);
 
   if (view.phase === 'finished') {
-    const leader = lobby.leaderId ? nameOf(lobby.leaderId) : null;
-    return <FinalScores view={view} nameOf={nameOf} leader={leader} />;
+    const leader = lobby.leaderId ? (playerOf(lobby.leaderId)?.name ?? null) : null;
+    return <FinalScores view={view} playerOf={playerOf} leader={leader} />;
   }
 
   const revealed = view.phase === 'reveal';
@@ -62,7 +80,7 @@ export function TriviaHost({ game, lobby }: TriviaHostProps) {
         <ol className="leaderboard" aria-label="Leaderboard">
           {view.leaderboard.slice(0, 5).map((entry) => (
             <li key={entry.playerId}>
-              <span>{nameOf(entry.playerId)}</span>
+              <PlayerTag player={playerOf(entry.playerId)} />
               <span className="score">
                 {entry.score}
                 {entry.gained > 0 && <span className="gained"> +{entry.gained}</span>}
@@ -83,11 +101,11 @@ export function TriviaHost({ game, lobby }: TriviaHostProps) {
 
 function FinalScores({
   view,
-  nameOf,
+  playerOf,
   leader,
 }: {
   view: TriviaHostView;
-  nameOf: (id: string) => string;
+  playerOf: PlayerLookup;
   leader: string | null;
 }) {
   return (
@@ -97,12 +115,12 @@ function FinalScores({
         {view.leaderboard.map((entry, i) => (
           <li key={entry.playerId} className={i === 0 ? 'winner' : undefined}>
             <span className="place">{i + 1}</span>
-            <span>{nameOf(entry.playerId)}</span>
+            <PlayerTag player={playerOf(entry.playerId)} size={i === 0 ? 48 : 36} />
             <span className="score">{entry.score}</span>
           </li>
         ))}
       </ol>
-      {leader && <p className="hint">{leader} can start another round from their phone</p>}
+      {leader && <p className="hint">{leader} can pick the next game from their phone</p>}
     </main>
   );
 }

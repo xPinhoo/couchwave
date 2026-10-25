@@ -11,7 +11,7 @@ describe('RoomsService', () => {
 
   /** Creates a room with Ana in it, connected through socket `s1`. */
   function roomWithAna() {
-    const { code } = service.create();
+    const { code } = service.create('screen').room;
     const joined = service.join(code, { id: 'ana', name: 'Ana' }, 's1');
     if (!joined.ok) throw new Error(joined.error);
     return { code, token: joined.sessionToken };
@@ -20,7 +20,7 @@ describe('RoomsService', () => {
   const connectedOf = (code: string) => service.get(code)?.players.map((p) => p.connected);
 
   it('creates a room in the lobby', () => {
-    const room = service.create();
+    const room = service.create('screen').room;
     expect(room).toMatchObject({ status: 'lobby', players: [], createdAt: 1000 });
     expect(service.get(room.code)).toBe(room);
   });
@@ -30,8 +30,8 @@ describe('RoomsService', () => {
     const draws = [0, 0, 0, 0, 0, 0, 0, 0, 0.99, 0.99, 0.99, 0.99];
     service.random = () => draws.shift() ?? 0.99;
 
-    expect(service.create().code).toBe('AAAA');
-    expect(service.create().code).toBe('ZZZZ');
+    expect(service.create('screen').room.code).toBe('AAAA');
+    expect(service.create('screen').room.code).toBe('ZZZZ');
   });
 
   it('returns ROOM_NOT_FOUND for an unknown code', () => {
@@ -42,7 +42,7 @@ describe('RoomsService', () => {
   });
 
   it('persists joined players and gives each one a distinct session token', () => {
-    const { code } = service.create();
+    const { code } = service.create('screen').room;
     const ana = service.join(code, { id: 'p1', name: 'Ana' }, 's1');
     const rui = service.join(code, { id: 'p2', name: 'Rui' }, 's2');
 
@@ -102,11 +102,47 @@ describe('RoomsService', () => {
     });
   });
 
-  it('closing a room deletes it and invalidates its sessions', () => {
-    const { code, token } = roomWithAna();
+  describe('TV screen', () => {
+    it('can take its room back on a new connection after a refresh', () => {
+      const { room, screenToken } = service.create('tv1');
 
-    expect(service.close(code)).toEqual(['ana']);
-    expect(service.get(code)).toBeUndefined();
-    expect(service.rejoin(token, 's2')).toEqual({ ok: false, error: 'INVALID_SESSION' });
+      expect(service.screenDisconnected(room.code, 'tv1')?.screenConnected).toBe(false);
+      expect(service.resumeScreen(screenToken, 'tv2')).toMatchObject({
+        ok: true,
+        previousConnectionId: 'tv1',
+        room: { code: room.code, screenConnected: true },
+      });
+    });
+
+    it('ignores a late disconnect from a screen that was already replaced', () => {
+      const { room, screenToken } = service.create('tv1');
+      service.resumeScreen(screenToken, 'tv2');
+
+      expect(service.screenDisconnected(room.code, 'tv1')).toBeUndefined();
+      expect(service.get(room.code)?.screenConnected).toBe(true);
+    });
+
+    it('rejects unknown screen tokens', () => {
+      expect(service.resumeScreen('nope', 'tv2')).toEqual({
+        ok: false,
+        error: 'INVALID_SESSION',
+      });
+    });
+  });
+
+  it('closing a room deletes it and invalidates every session in it', () => {
+    const { room, screenToken } = service.create('tv1');
+    const ana = service.join(room.code, { id: 'ana', name: 'Ana' }, 's1');
+
+    expect(service.close(room.code)).toEqual(['ana']);
+    expect(service.get(room.code)).toBeUndefined();
+    expect(ana.ok && service.rejoin(ana.sessionToken, 's2')).toEqual({
+      ok: false,
+      error: 'INVALID_SESSION',
+    });
+    expect(service.resumeScreen(screenToken, 'tv2')).toEqual({
+      ok: false,
+      error: 'INVALID_SESSION',
+    });
   });
 });

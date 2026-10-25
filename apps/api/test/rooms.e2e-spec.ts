@@ -1,17 +1,23 @@
 import type { AddressInfo } from 'node:net';
-import type { ClientToServerEvents, ServerToClientEvents } from '@couchwave/shared';
+import { GAMES, type ClientToServerEvents, type ServerToClientEvents } from '@couchwave/shared';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
-import { RECONNECT_GRACE_MS, TRIVIA_CONFIG } from '../src/rooms/rooms.constants.js';
+import {
+  RECONNECT_GRACE_MS,
+  SCREEN_GRACE_MS,
+  TRIVIA_CONFIG,
+} from '../src/rooms/rooms.constants.js';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const GRACE_MS = 300;
+const SCREEN_GRACE = 400;
 const QUESTION_MS = 400;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('Rooms (e2e)', () => {
   let app: INestApplication;
@@ -22,6 +28,8 @@ describe('Rooms (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(RECONNECT_GRACE_MS)
       .useValue(GRACE_MS)
+      .overrideProvider(SCREEN_GRACE_MS)
+      .useValue(SCREEN_GRACE)
       .overrideProvider(TRIVIA_CONFIG)
       .useValue({ rounds: 2, questionMs: QUESTION_MS, revealMs: 150 })
       .compile();
@@ -50,7 +58,7 @@ describe('Rooms (e2e)', () => {
     const host = await connect();
     const res = await host.emitWithAck('room:create');
     if (!res.ok) throw new Error(res.error);
-    return { host, roomCode: res.data.roomCode };
+    return { host, roomCode: res.data.lobby.roomCode, screenToken: res.data.screenToken };
   }
 
   async function joinAs(roomCode: string, name: string) {
@@ -58,6 +66,12 @@ describe('Rooms (e2e)', () => {
     const res = await client.emitWithAck('room:join', { roomCode, name });
     if (!res.ok) throw new Error(res.error);
     return { client, ...res.data };
+  }
+
+  /** The leader opens the games library and starts trivia (the first game). */
+  async function startTrivia(leader: Client) {
+    expect(await leader.emitWithAck('library:open')).toEqual({ ok: true, data: null });
+    expect(await leader.emitWithAck('library:select')).toEqual({ ok: true, data: null });
   }
 
   const next = <E extends keyof ServerToClientEvents>(client: Client, event: E) =>
@@ -71,13 +85,21 @@ describe('Rooms (e2e)', () => {
     expect(res.body).toEqual({ status: 'ok' });
   });
 
-  it('host creates a room with a 4-letter code and an empty lobby', async () => {
+  it('the TV creates a room with a 4-letter code, an empty lobby and a screen token', async () => {
     const host = await connect();
     const res = await host.emitWithAck('room:create');
 
     expect(res).toMatchObject({
       ok: true,
-      data: { roomCode: expect.stringMatching(/^[A-Z]{4}$/), players: [] },
+      data: {
+        lobby: {
+          roomCode: expect.stringMatching(/^[A-Z]{4}$/),
+          status: 'lobby',
+          players: [],
+          screenConnected: true,
+        },
+        screenToken: expect.any(String),
+      },
     });
   });
 
@@ -120,6 +142,130 @@ describe('Rooms (e2e)', () => {
     });
   });
 
+  describe('avatars', () => {
+    it('keeps the avatar each player picked, preset or photo, and shows it to everyone', async () => {
+      const { host, roomCode } = await createRoom();
+      const photo = { kind: 'photo', dataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' } as const;
+
+      const ana = await connect();
+      await ana.emitWithAck('room:join', {
+        roomCode,
+        name: 'Ana',
+        avatar: { kind: 'preset', id: 'unicorn' },
+      });
+      const hostUpdate = next(host, 'lobby:update');
+      const rui = await connect();
+      await rui.emitWithAck('room:join', { roomCode, name: 'Rui', avatar: photo });
+
+      expect((await hostUpdate).players.map((p) => p.avatar)).toEqual([
+        { kind: 'preset', id: 'unicorn' },
+        photo,
+      ]);
+    });
+
+    it('rejects avatars that are not a preset or a raster photo', async () => {
+      const { roomCode } = await createRoom();
+      const phone = await connect();
+
+      for (const avatar of [
+        { kind: 'preset', id: 'dragon' },
+        { kind: 'photo', dataUrl: 'data:image/svg+xml;base64,PHN2Zz4=' },
+      ]) {
+        expect(
+          await phone.emitWithAck('room:join', { roomCode, name: 'Ana', avatar } as never),
+        ).toMatchObject({ ok: false, error: 'INVALID_PAYLOAD' });
+      }
+    });
+  });
+
+  describe('reactions', () => {
+    it('float up on the TV, with a cooldown, and only outside games', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+
+      const onTv = next(host, 'room:reaction');
+      expect(await ana.client.emitWithAck('room:react', { emoji: '🎉' })).toEqual({
+        ok: true,
+        data: null,
+      });
+      expect(await onTv).toEqual({ playerId: ana.playerId, emoji: '🎉' });
+
+      expect(await ana.client.emitWithAck('room:react', { emoji: '🔥' })).toEqual({
+        ok: false,
+        error: 'TOO_FAST',
+      });
+
+      await sleep(350);
+      await startTrivia(ana.client);
+      expect(await ana.client.emitWithAck('room:react', { emoji: '🔥' })).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+    });
+
+    it('rejects emoji that are not in the list', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      expect(await ana.client.emitWithAck('room:react', { emoji: '🍕' } as never)).toEqual({
+        ok: false,
+        error: 'INVALID_PAYLOAD',
+      });
+    });
+  });
+
+  describe('games library', () => {
+    it('is opened, browsed and closed by the leader, and everyone sees the highlight', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      expect(await rui.client.emitWithAck('library:open')).toEqual({
+        ok: false,
+        error: 'NOT_LEADER',
+      });
+      expect(await ana.client.emitWithAck('library:move', { delta: 1 })).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+
+      const opened = next(host, 'lobby:update');
+      const ruiSeesOpen = next(rui.client, 'lobby:update');
+      await ana.client.emitWithAck('library:open');
+      expect(await opened).toMatchObject({ status: 'library', selectedGame: 0 });
+      await ruiSeesOpen; // the broadcast can land after Ana's ack
+
+      const wrapped = next(rui.client, 'lobby:update');
+      await ana.client.emitWithAck('library:move', { delta: -1 });
+      expect((await wrapped).selectedGame).toBe(GAMES.length - 1);
+
+      const closed = next(host, 'lobby:update');
+      expect(await ana.client.emitWithAck('library:close')).toEqual({ ok: true, data: null });
+      expect((await closed).status).toBe('lobby');
+    });
+
+    it('lets players join while the leader is choosing', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      await ana.client.emitWithAck('library:open');
+
+      const rui = await joinAs(roomCode, 'Rui');
+      expect(rui.lobby.status).toBe('library');
+    });
+
+    it('refuses to start a game that is not available yet', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      await ana.client.emitWithAck('library:open');
+      await ana.client.emitWithAck('library:move', { delta: 1 });
+
+      expect(GAMES[1]?.available).toBe(false);
+      expect(await ana.client.emitWithAck('library:select')).toEqual({
+        ok: false,
+        error: 'GAME_UNAVAILABLE',
+      });
+    });
+  });
+
   describe('reconnection', () => {
     it('keeps a disconnected player seated, then frees the seat after the grace period', async () => {
       const { host, roomCode } = await createRoom();
@@ -127,7 +273,7 @@ describe('Rooms (e2e)', () => {
 
       const markedAway = next(host, 'lobby:update');
       ana.client.disconnect();
-      expect((await markedAway).players).toEqual([
+      expect((await markedAway).players).toMatchObject([
         { id: ana.playerId, name: 'Ana', connected: false },
       ]);
 
@@ -148,10 +294,12 @@ describe('Rooms (e2e)', () => {
       const res = await phone.emitWithAck('room:rejoin', { sessionToken: ana.sessionToken });
 
       expect(res).toMatchObject({ ok: true, data: { playerId: ana.playerId } });
-      expect((await back).players).toEqual([{ id: ana.playerId, name: 'Ana', connected: true }]);
+      expect((await back).players).toMatchObject([
+        { id: ana.playerId, name: 'Ana', connected: true },
+      ]);
 
       // Waiting past the grace period must not remove a player who came back
-      await new Promise((resolve) => setTimeout(resolve, GRACE_MS * 2));
+      await sleep(GRACE_MS * 2);
       const rui = await joinAs(roomCode, 'Rui');
       expect(rui.lobby.players.map((p) => [p.name, p.connected])).toEqual([
         ['Ana', true],
@@ -178,7 +326,7 @@ describe('Rooms (e2e)', () => {
       const { roomCode } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       ana.client.disconnect();
-      await new Promise((resolve) => setTimeout(resolve, GRACE_MS * 2));
+      await sleep(GRACE_MS * 2);
 
       const phone = await connect();
       expect(await phone.emitWithAck('room:rejoin', { sessionToken: 'nope' })).toEqual({
@@ -192,19 +340,56 @@ describe('Rooms (e2e)', () => {
     });
   });
 
-  it('closes the room for everyone when the host leaves', async () => {
-    const { host, roomCode } = await createRoom();
-    const ana = await connect();
-    await ana.emitWithAck('room:join', { roomCode, name: 'Ana' });
+  describe('TV screen', () => {
+    it('can refresh: players see it go and come back, and the room carries on', async () => {
+      const { host, roomCode, screenToken } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
 
-    const closed = next(ana, 'room:closed');
-    host.disconnect();
-    expect(await closed).toBe('HOST_LEFT');
+      const tvGone = next(ana.client, 'lobby:update');
+      host.disconnect();
+      expect((await tvGone).screenConnected).toBe(false);
 
-    const late = await connect();
-    expect(await late.emitWithAck('room:join', { roomCode, name: 'Rui' })).toEqual({
-      ok: false,
-      error: 'ROOM_NOT_FOUND',
+      const tvBack = next(ana.client, 'lobby:update');
+      const tv = await connect();
+      const res = await tv.emitWithAck('room:resume', { screenToken });
+      expect(res).toMatchObject({ ok: true, data: { lobby: { roomCode, players: [{}] } } });
+      expect((await tvBack).screenConnected).toBe(true);
+
+      // Still alive after the screen grace period
+      await sleep(SCREEN_GRACE * 1.5);
+      const rui = await joinAs(roomCode, 'Rui');
+      expect(rui.lobby.players).toHaveLength(2);
+    });
+
+    it('gets the current game screen straight away when it resumes mid-game', async () => {
+      const { host, roomCode, screenToken } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      await startTrivia(ana.client);
+      host.disconnect();
+
+      const tv = await connect();
+      const screen = next(tv, 'game:host');
+      await tv.emitWithAck('room:resume', { screenToken });
+      expect((await screen).view).toMatchObject({ round: 1, phase: 'question' });
+    });
+
+    it('closes the room for everyone when the TV stays away too long', async () => {
+      const { host, roomCode, screenToken } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+
+      const closed = next(ana.client, 'room:closed');
+      host.disconnect();
+      expect(await closed).toBe('SCREEN_LEFT');
+
+      const late = await connect();
+      expect(await late.emitWithAck('room:join', { roomCode, name: 'Rui' })).toEqual({
+        ok: false,
+        error: 'ROOM_NOT_FOUND',
+      });
+      expect(await late.emitWithAck('room:resume', { screenToken })).toEqual({
+        ok: false,
+        error: 'INVALID_SESSION',
+      });
     });
   });
 
@@ -233,7 +418,7 @@ describe('Rooms (e2e)', () => {
       });
     });
 
-    it('only lets the leader kick, never themselves, and only in the lobby', async () => {
+    it('only lets the leader kick, never themselves, and not during a game', async () => {
       const { roomCode } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       const rui = await joinAs(roomCode, 'Rui');
@@ -251,7 +436,7 @@ describe('Rooms (e2e)', () => {
         error: 'PLAYER_NOT_FOUND',
       });
 
-      await ana.client.emitWithAck('game:start');
+      await startTrivia(ana.client);
       expect(await ana.client.emitWithAck('room:kick', { playerId: rui.playerId })).toEqual({
         ok: false,
         error: 'GAME_IN_PROGRESS',
@@ -269,7 +454,7 @@ describe('Rooms (e2e)', () => {
       ana.client.disconnect();
       await ruiLeads; // after the grace period
 
-      expect(await rui.client.emitWithAck('game:start')).toEqual({ ok: true, data: null });
+      expect(await rui.client.emitWithAck('library:open')).toEqual({ ok: true, data: null });
     });
   });
 
@@ -309,24 +494,25 @@ describe('Rooms (e2e)', () => {
       const hostQ1 = hostSees(host, (u) => u.view.phase === 'question');
       const anaQ1 = playerSees(ana.client, (u) => u.view.phase === 'question');
       // Ana joined first, so she is the leader
-      expect(await ana.client.emitWithAck('game:start')).toEqual({ ok: true, data: null });
+      await startTrivia(ana.client);
       return { host, roomCode, ana, rui, hostQ1: await hostQ1, anaQ1: await anaQ1 };
     }
 
-    it('only lets the leader start: not the TV screen, not other players', async () => {
+    it('only the leader picks the game: not the TV screen, not other players', async () => {
       const { host, roomCode } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       const rui = await joinAs(roomCode, 'Rui');
+      await ana.client.emitWithAck('library:open');
 
       expect(ana.lobby.leaderId).toBe(ana.playerId);
-      expect(await host.emitWithAck('game:start')).toEqual({ ok: false, error: 'NOT_LEADER' });
-      expect(await rui.client.emitWithAck('game:start')).toEqual({
+      expect(await host.emitWithAck('library:select')).toEqual({ ok: false, error: 'NOT_LEADER' });
+      expect(await rui.client.emitWithAck('library:select')).toEqual({
         ok: false,
         error: 'NOT_LEADER',
       });
     });
 
-    it('sends the host the question and each player only their choices', async () => {
+    it('sends the TV the question and each player only their choices', async () => {
       const { hostQ1, anaQ1 } = await startedGame();
 
       expect(hostQ1.view).toMatchObject({
@@ -373,7 +559,7 @@ describe('Rooms (e2e)', () => {
       );
     });
 
-    it('blocks new players mid-game and returns to the lobby when the leader ends it', async () => {
+    it('blocks new players mid-game and returns to the library when the leader ends it', async () => {
       const { host, roomCode, ana, rui } = await startedGame();
 
       const late = await connect();
@@ -383,9 +569,9 @@ describe('Rooms (e2e)', () => {
       });
       expect(await rui.client.emitWithAck('game:end')).toEqual({ ok: false, error: 'NOT_LEADER' });
 
-      const backInLobby = next(host, 'lobby:update');
+      const backInLibrary = next(host, 'lobby:update');
       expect(await ana.client.emitWithAck('game:end')).toEqual({ ok: true, data: null });
-      expect((await backInLobby).status).toBe('lobby');
+      expect((await backInLibrary).status).toBe('library');
     });
 
     it('sends a player who reconnects mid-game the current screen right away', async () => {

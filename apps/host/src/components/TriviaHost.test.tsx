@@ -1,18 +1,16 @@
-import type { LobbyState, TriviaHostView } from '@couchwave/shared';
+import type { TriviaHostView } from '@couchwave/shared';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { lobbyState, player } from '../test/fixtures';
 import { TriviaHost } from './TriviaHost';
 
-const lobby: LobbyState = {
-  roomCode: 'WXYZ',
+const lobby = lobbyState({
   status: 'playing',
-  maxPlayers: 8,
-  leaderId: 'ana',
   players: [
-    { id: 'ana', name: 'Ana', connected: true },
-    { id: 'rui', name: 'Rui', connected: true },
+    player('ana', 'Ana', { avatar: { kind: 'preset', id: 'cat' } }),
+    player('rui', 'Rui', { avatar: { kind: 'preset', id: 'dino' } }),
   ],
-};
+});
 
 function view(overrides: Partial<TriviaHostView> = {}): TriviaHostView {
   return {
@@ -71,17 +69,17 @@ describe('TriviaHost', () => {
       within(screen.getByRole('list', { name: 'Leaderboard' }))
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['Rui1800 +900', 'Ana700']);
+    ).toEqual(['🦖Rui1800 +900', '🐱Ana700']);
   });
 
-  it('shows the final scores and tells everyone the host can start another round', () => {
+  it('shows the final scores with avatars and tells everyone the host picks the next game', () => {
     renderHost(view({ phase: 'finished', endsAt: null }));
 
     const podium = within(screen.getByRole('list', { name: 'Final scores' })).getAllByRole(
       'listitem',
     );
-    expect(podium[0]).toHaveTextContent('1Rui1800');
+    expect(podium[0]).toHaveTextContent('1🦖Rui1800');
     expect(podium[0]).toHaveClass('winner');
-    expect(screen.getByText('Ana can start another round from their phone')).toBeInTheDocument();
+    expect(screen.getByText('Ana can pick the next game from their phone')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
-import type { LobbyState } from '@couchwave/shared';
+import { REACTIONS, type LobbyState } from '@couchwave/shared';
 import { QRCodeSVG } from 'qrcode.react';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface LobbyProps {
   lobby: LobbyState;
@@ -31,13 +32,16 @@ export function Lobby({ lobby, controllerUrl }: LobbyProps) {
         <ul>
           {lobby.players.map((player) => (
             <li key={player.id} className={player.connected ? 'seat taken' : 'seat taken away'}>
-              {player.id === lobby.leaderId && (
-                <span className="crown" aria-label="Host">
-                  👑
-                </span>
-              )}
-              {player.name}
-              {!player.connected && <span className="seat-status">reconnecting…</span>}
+              <PlayerAvatar avatar={player.avatar} size={56} />
+              <span className="seat-name">
+                {player.id === lobby.leaderId && (
+                  <span className="crown" aria-label="Host">
+                    👑
+                  </span>
+                )}
+                {player.name}
+                {!player.connected && <span className="seat-status">reconnecting…</span>}
+              </span>
             </li>
           ))}
           {Array.from({ length: emptySeats }, (_, i) => (
@@ -49,6 +53,9 @@ export function Lobby({ lobby, controllerUrl }: LobbyProps) {
             ? `Waiting for ${leader.name} to start the game from their phone…`
             : 'Waiting for players… the first to join becomes the host 👑'}
         </p>
+        {lobby.players.length > 0 && (
+          <p className="hint">Bored? Send reactions from your phone {REACTIONS.slice(0, 3)}</p>
+        )}
       </section>
     </main>
   );

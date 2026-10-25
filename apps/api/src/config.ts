@@ -7,8 +7,17 @@ export function corsOrigins(): string[] | true {
   return raw ? raw.split(',').map((origin) => origin.trim()) : true;
 }
 
+function positiveIntEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 /** How long a disconnected player keeps their seat before it is freed (RECONNECT_GRACE_MS). */
 export function reconnectGraceMs(): number {
-  const value = Number(process.env.RECONNECT_GRACE_MS);
-  return Number.isFinite(value) && value > 0 ? value : 30_000;
+  return positiveIntEnv('RECONNECT_GRACE_MS', 30_000);
+}
+
+/** How long a room waits for its TV screen to come back before closing (SCREEN_GRACE_MS). */
+export function screenGraceMs(): number {
+  return positiveIntEnv('SCREEN_GRACE_MS', 120_000);
 }

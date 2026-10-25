@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { clearScreenToken } from '../screenSession';
 
 const STEPS = [
   {
@@ -23,7 +24,8 @@ export function HomePage() {
         <p className="hero-tagline">
           a chaotic party games console where your phone is your joystick
         </p>
-        <Link to="/room" className="primary-button">
+        {/* A fresh room every time; only refreshing /room resumes the previous one */}
+        <Link to="/room" className="primary-button" onClick={clearScreenToken}>
           Create Game Room
         </Link>
       </section>

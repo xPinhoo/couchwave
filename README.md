@@ -7,8 +7,13 @@ room code and QR code. Friends join from the **controller** app on their phones 
 Expo, or straight from the browser) and play mini-games together in real time over WebSockets.
 
 The TV only displays. The **first player to join becomes the room's host 👑** (called the
-_leader_ in the code, since "host" already names the TV app): they start and end games and can
-kick players from their phone. If they leave for good, the next player in join order takes over.
+_leader_ in the code, since "host" already names the TV app): they open the games library, browse
+it with their phone as a joystick (◀ ▶ + Play), end games and kick players. If they leave for
+good, the next player in join order takes over.
+
+Players pick a name and an avatar when they join: one of 16 presets, or a selfie that the phone
+crops and shrinks to a 160 px JPEG of a few KB before sending. While they wait, everyone can send
+emoji reactions that float up the TV.
 
 ## Architecture
 
@@ -39,6 +44,10 @@ packages/
   the state changes.
 - **Countdowns line up across devices.** Every game update carries the server's clock, and
   clients correct for their own clock being ahead or behind.
+- **The TV can refresh too.** Creating a room returns a screen token, kept in the tab's
+  `sessionStorage`. A refreshed TV sends `room:resume` and gets the same room back, mid-game
+  included; phones show a banner while it's away. If the TV stays away for 2 minutes the room
+  closes and everyone is told why, so abandoned rooms clean themselves up.
 
 ## Games
 
@@ -72,6 +81,7 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 | `PORT`                | api        | `3000`                               |
 | `CORS_ORIGINS`        | api        | any origin (comma-separated list)    |
 | `RECONNECT_GRACE_MS`  | api        | `30000`                              |
+| `SCREEN_GRACE_MS`     | api        | `120000`                             |
 | `VITE_API_URL`        | host       | same hostname as the page, port 3000 |
 | `VITE_CONTROLLER_URL` | host       | same hostname as the page, port 8081 |
 | `EXPO_PUBLIC_API_URL` | controller | the dev machine's address, port 3000 |
@@ -150,8 +160,8 @@ If a name is already taken (the Fly app or a `*.vercel.app` domain), update the 
 - [x] **M1b** Deploy API + web apps
 - [x] **M2** First mini-game: quick-fire trivia
 - [x] **M3a** Home, About and Contacts pages; first player is the host (start, kick, end)
-- [ ] **M3b** Games library navigated from the host's phone; TV reconnection; rooms close
-      when nobody is connected
+- [x] **M3b** Games library navigated from the host's phone; avatars (presets + selfie);
+      lobby reactions; TV reconnection; rooms close when the TV is gone
 - [ ] **M4** Accounts (email/password + Google), profiles, contact form backed by a database
 - [ ] **M5** Native app: QR scanner, deep links, haptics, game history, "recently played with"
 - [ ] **M6** More games: bluff, draw & guess

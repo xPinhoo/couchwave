@@ -2,27 +2,45 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { initialRoomCode } from './src/config';
+import { StatusBanner } from './src/components/StatusBanner';
 import { JoinScreen } from './src/screens/JoinScreen';
+import { LibraryScreen } from './src/screens/LibraryScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
 import { TriviaScreen } from './src/screens/TriviaScreen';
 import { colors } from './src/theme';
 import { useController } from './src/useController';
 
 export default function App() {
-  const { state, game, actionError, join, answer, startGame, endGame, kick, reset } =
-    useController();
+  const { state, game, actionError, join, answer, react, leader, reset } = useController();
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="light" />
         {state.status === 'lobby' && state.lobby.status === 'playing' && game ? (
-          <TriviaScreen
-            game={game}
+          <>
+            <StatusBanner
+              connected={state.connected}
+              screenConnected={state.lobby.screenConnected}
+            />
+            <TriviaScreen
+              game={game}
+              connected={state.connected}
+              isLeader={state.lobby.leaderId === state.playerId}
+              onAnswer={answer}
+              onEnd={() => void leader.endGame()}
+            />
+          </>
+        ) : state.status === 'lobby' && state.lobby.status === 'library' ? (
+          <LibraryScreen
+            playerId={state.playerId}
+            lobby={state.lobby}
             connected={state.connected}
-            isLeader={state.lobby.leaderId === state.playerId}
-            onAnswer={answer}
-            onEnd={() => void endGame()}
+            error={actionError}
+            onMove={(delta) => void leader.moveLibrary(delta)}
+            onSelect={() => void leader.selectGame()}
+            onBack={() => void leader.closeLibrary()}
+            onReact={react}
           />
         ) : state.status === 'lobby' ? (
           <LobbyScreen
@@ -30,8 +48,9 @@ export default function App() {
             lobby={state.lobby}
             connected={state.connected}
             error={actionError}
-            onStart={() => void startGame()}
-            onKick={(id) => void kick(id)}
+            onStart={() => void leader.openLibrary()}
+            onKick={(id) => void leader.kick(id)}
+            onReact={react}
           />
         ) : state.status === 'rejoining' ? (
           <View style={styles.centered}>
@@ -42,7 +61,7 @@ export default function App() {
             <Text style={styles.message}>
               {state.status === 'kicked'
                 ? 'The host removed you from the room.'
-                : 'The game screen was closed.'}
+                : 'The room closed because the TV screen left.'}
             </Text>
             <Pressable accessibilityRole="button" onPress={reset}>
               <Text style={styles.link}>Join another room</Text>

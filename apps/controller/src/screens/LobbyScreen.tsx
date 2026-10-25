@@ -1,6 +1,9 @@
-import type { LobbyState } from '@couchwave/shared';
+import type { LobbyState, Reaction } from '@couchwave/shared';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PlayerAvatar } from '../components/PlayerAvatar';
+import { ReactionBar } from '../components/ReactionBar';
+import { StatusBanner } from '../components/StatusBanner';
 import { colors } from '../theme';
 
 interface LobbyScreenProps {
@@ -12,6 +15,7 @@ interface LobbyScreenProps {
   error: string | null;
   onStart: () => void;
   onKick: (playerId: string) => void;
+  onReact: (emoji: Reaction) => void;
 }
 
 export function LobbyScreen({
@@ -21,6 +25,7 @@ export function LobbyScreen({
   error,
   onStart,
   onKick,
+  onReact,
 }: LobbyScreenProps) {
   const me = lobby.players.find((p) => p.id === playerId);
   const isLeader = lobby.leaderId === playerId;
@@ -35,20 +40,21 @@ export function LobbyScreen({
   }, [armedKick]);
 
   return (
-    <View style={styles.container}>
-      {!connected && (
-        <Text style={styles.banner} accessibilityRole="alert">
-          Connection lost — reconnecting…
-        </Text>
-      )}
+    <ScrollView contentContainerStyle={styles.container}>
+      <StatusBanner connected={connected} screenConnected={lobby.screenConnected} />
 
       <Text style={styles.eyebrow}>Room {lobby.roomCode}</Text>
+      {me && (
+        <View style={styles.me}>
+          <PlayerAvatar avatar={me.avatar} size={72} />
+        </View>
+      )}
       <Text style={styles.title}>
         {isLeader ? `You're the host 👑` : `You're in, ${me?.name}!`}
       </Text>
       <Text style={styles.muted}>
         {isLeader
-          ? 'Start the game when everyone has joined.'
+          ? 'Choose a game when everyone has joined.'
           : `Waiting for ${leader?.name ?? 'the host'} to start the game…`}
       </Text>
 
@@ -65,10 +71,13 @@ export function LobbyScreen({
                 !player.connected && styles.playerAway,
               ]}
             >
-              <Text style={styles.playerName}>
-                {player.id === lobby.leaderId ? '👑 ' : ''}
-                {player.name}
-              </Text>
+              <View style={styles.playerInfo}>
+                <PlayerAvatar avatar={player.avatar} size={32} />
+                <Text style={styles.playerName}>
+                  {player.id === lobby.leaderId ? '👑 ' : ''}
+                  {player.name}
+                </Text>
+              </View>
               {canKick && (
                 <Pressable
                   accessibilityRole="button"
@@ -107,32 +116,30 @@ export function LobbyScreen({
             !connected && styles.disabled,
           ]}
         >
-          <Text style={styles.startText}>Start trivia</Text>
+          <Text style={styles.startText}>Choose a game</Text>
         </Pressable>
       )}
-    </View>
+
+      <ReactionBar disabled={!connected} onReact={onReact} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
     gap: 12,
   },
-  banner: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.warning,
-    color: colors.bg,
-    fontWeight: '700',
-    textAlign: 'center',
-    overflow: 'hidden',
+  me: {
+    alignItems: 'center',
+  },
+  playerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
   },
   eyebrow: {
     color: colors.muted,

@@ -1,19 +1,24 @@
 import type {
   ClientToServerEvents,
+  CreatedRoom,
   GameUpdate,
   LobbyState,
+  ReactionEvent,
+  Result,
   ServerToClientEvents,
   TriviaHostView,
 } from '@couchwave/shared';
 import { useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL } from './config';
+import { clearScreenToken, loadScreenToken, saveScreenToken } from './screenSession';
 
 type HostSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export type HostRoomState =
   | { status: 'connecting' }
   | { status: 'ready'; lobby: LobbyState }
+  | { status: 'closed' }
   | { status: 'error'; message: string };
 
 export interface HostGame {
@@ -22,28 +27,63 @@ export interface HostGame {
   receivedAt: number;
 }
 
+export interface FloatingReaction extends ReactionEvent {
+  /** Unique per reaction, for React keys and removal. */
+  key: number;
+}
+
+/** How long a reaction floats on screen. Matches the CSS animation. */
+export const REACTION_LIFETIME_MS = 2_500;
+const MAX_REACTIONS_ON_SCREEN = 30;
+
 /**
- * Connects to the API, creates a room and keeps its lobby and game in sync. The TV only
- * listens: all commands come from the leader's phone.
+ * Connects to the API, creates (or, after a refresh, resumes) a room and keeps its lobby,
+ * game and reactions in sync. The TV only listens: commands come from the leader's phone.
  */
 export function useHostRoom() {
   const [room, setRoom] = useState<HostRoomState>({ status: 'connecting' });
   const [game, setGame] = useState<HostGame | null>(null);
+  const [reactions, setReactions] = useState<FloatingReaction[]>([]);
 
   useEffect(() => {
     const socket: HostSocket = io(API_URL, { transports: ['websocket'] });
+    let nextKey = 0;
 
+    const enterRoom = (res: Result<CreatedRoom>) => {
+      if (!res.ok) return false;
+      saveScreenToken(res.data.screenToken);
+      setRoom({ status: 'ready', lobby: res.data.lobby });
+      return true;
+    };
+
+    // Runs on the first connection and after every reconnection
     socket.on('connect', async () => {
+      const token = loadScreenToken();
+      if (token && enterRoom(await socket.emitWithAck('room:resume', { screenToken: token }))) {
+        return;
+      }
+      clearScreenToken();
       const res = await socket.emitWithAck('room:create');
-      setRoom(
-        res.ok ? { status: 'ready', lobby: res.data } : { status: 'error', message: res.error },
-      );
+      if (!enterRoom(res) && !res.ok) setRoom({ status: 'error', message: res.error });
     });
+
     socket.on('lobby:update', (lobby) => {
       setRoom({ status: 'ready', lobby });
-      if (lobby.status === 'lobby') setGame(null);
+      if (lobby.status !== 'playing') setGame(null);
     });
     socket.on('game:host', (update) => setGame({ update, receivedAt: Date.now() }));
+    socket.on('room:reaction', (reaction) => {
+      const key = nextKey++;
+      setReactions((prev) => [...prev, { ...reaction, key }].slice(-MAX_REACTIONS_ON_SCREEN));
+      setTimeout(
+        () => setReactions((prev) => prev.filter((r) => r.key !== key)),
+        REACTION_LIFETIME_MS,
+      );
+    });
+    socket.on('room:closed', () => {
+      clearScreenToken();
+      setRoom({ status: 'closed' });
+    });
     socket.on('connect_error', () =>
       setRoom({ status: 'error', message: `Can't reach the server at ${API_URL}` }),
     );
@@ -53,5 +93,5 @@ export function useHostRoom() {
     };
   }, []);
 
-  return { room, game };
+  return { room, game, reactions };
 }

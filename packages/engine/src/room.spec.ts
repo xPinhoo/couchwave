@@ -1,10 +1,11 @@
-import { MAX_PLAYERS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@couchwave/shared';
+import { GAMES, MAX_PLAYERS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@couchwave/shared';
 import { describe, expect, it } from 'vitest';
 import {
   addPlayer,
   createRoom,
   generateRoomCode,
   isLeader,
+  moveGameSelection,
   removePlayer,
   setPlayerConnected,
   toLobbyState,
@@ -43,8 +44,35 @@ describe('addPlayer', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.room.players).toEqual([{ id: 'p1', name: 'Ana', connected: true, joinedAt: 1 }]);
+    expect(result.room.players).toEqual([
+      {
+        id: 'p1',
+        name: 'Ana',
+        avatar: { kind: 'preset', id: 'fox' },
+        connected: true,
+        joinedAt: 1,
+      },
+    ]);
     expect(room.players).toHaveLength(0);
+  });
+
+  it('keeps the avatar the player picked', () => {
+    const avatar = { kind: 'photo', dataUrl: 'data:image/jpeg;base64,AAAA' } as const;
+    const result = addPlayer(createRoom('ABCD', 0), { id: 'p1', name: 'Ana', avatar, now: 1 });
+    expect(result.ok && result.player.avatar).toEqual(avatar);
+  });
+
+  it('gives players without an avatar a preset nobody else is using', () => {
+    const room = roomWith('a', 'b');
+    expect(room.players.map((p) => p.avatar)).toEqual([
+      { kind: 'preset', id: 'fox' },
+      { kind: 'preset', id: 'frog' },
+    ]);
+  });
+
+  it('lets players join while the host is picking a game', () => {
+    const room: Room = { ...roomWith('Ana'), status: 'library' };
+    expect(join(room, 'p2', 'Rui').ok).toBe(true);
   });
 
   it('rejects duplicate names case-insensitively', () => {
@@ -95,6 +123,17 @@ describe('leader', () => {
   });
 });
 
+describe('moveGameSelection', () => {
+  it('moves the highlight and wraps around at both ends', () => {
+    const room = createRoom('ABCD', 0);
+    expect(moveGameSelection(room, 1).selectedGame).toBe(1);
+    expect(moveGameSelection(room, -1).selectedGame).toBe(GAMES.length - 1);
+
+    const last = { ...room, selectedGame: GAMES.length - 1 };
+    expect(moveGameSelection(last, 1).selectedGame).toBe(0);
+  });
+});
+
 describe('setPlayerConnected', () => {
   it('flags only the given player', () => {
     const room = setPlayerConnected(roomWith('a', 'b'), 'a', false);
@@ -112,9 +151,11 @@ describe('toLobbyState', () => {
     expect(toLobbyState(roomWith('Ana'))).toEqual({
       roomCode: 'ABCD',
       status: 'lobby',
-      players: [{ id: 'Ana', name: 'Ana', connected: true }],
+      players: [{ id: 'Ana', name: 'Ana', avatar: { kind: 'preset', id: 'fox' }, connected: true }],
       leaderId: 'Ana',
       maxPlayers: MAX_PLAYERS,
+      screenConnected: true,
+      selectedGame: 0,
     });
   });
 });

@@ -1,13 +1,15 @@
 import type {
+  Avatar,
   ClientToServerEvents,
   ErrorCode,
   GameUpdate,
   JoinedRoom,
   LobbyState,
+  Reaction,
   ServerToClientEvents,
   TriviaPlayerView,
 } from '@couchwave/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL } from './config';
@@ -45,6 +47,9 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   GAME_IN_PROGRESS: 'A game is already in progress.',
   ALREADY_IN_ROOM: 'You are already in a room.',
   INVALID_SESSION: 'You were away for too long. Join again.',
+  WRONG_PHASE: "You can't do that right now.",
+  GAME_UNAVAILABLE: "That game isn't ready yet. Pick another one!",
+  TOO_FAST: 'Slow down a little!',
 };
 
 const inLobby = ({ playerId, lobby }: JoinedRoom): ControllerState => ({
@@ -100,7 +105,7 @@ export function useController() {
 
     socket.on('lobby:update', (lobby) => {
       setState((prev) => (prev.status === 'lobby' ? { ...prev, lobby } : prev));
-      if (lobby.status === 'lobby') setGame(null);
+      if (lobby.status !== 'playing') setGame(null);
     });
     socket.on('game:player', (update) => setGame({ update, receivedAt: Date.now() }));
     socket.on('room:closed', () => {
@@ -127,7 +132,7 @@ export function useController() {
     };
   }, []);
 
-  const join = useCallback(async (roomCode: string, name: string) => {
+  const join = useCallback(async (roomCode: string, name: string, avatar: Avatar) => {
     const socket = socketRef.current;
     if (!socket) return;
 
@@ -138,7 +143,7 @@ export function useController() {
       return;
     }
 
-    const res = await socket.emitWithAck('room:join', { roomCode, name });
+    const res = await socket.emitWithAck('room:join', { roomCode, name, avatar });
     if (res.ok) {
       saveSession({ sessionToken: res.data.sessionToken });
       setState(inLobby(res.data));
@@ -169,18 +174,24 @@ export function useController() {
     [],
   );
 
-  const startGame = useCallback(
-    () => leaderAction((socket) => socket.emitWithAck('game:start')),
+  const leader = useMemo(
+    () => ({
+      openLibrary: () => leaderAction((socket) => socket.emitWithAck('library:open')),
+      closeLibrary: () => leaderAction((socket) => socket.emitWithAck('library:close')),
+      moveLibrary: (delta: -1 | 1) =>
+        leaderAction((socket) => socket.emitWithAck('library:move', { delta })),
+      selectGame: () => leaderAction((socket) => socket.emitWithAck('library:select')),
+      endGame: () => leaderAction((socket) => socket.emitWithAck('game:end')),
+      kick: (playerId: string) =>
+        leaderAction((socket) => socket.emitWithAck('room:kick', { playerId })),
+    }),
     [leaderAction],
   );
-  const endGame = useCallback(
-    () => leaderAction((socket) => socket.emitWithAck('game:end')),
-    [leaderAction],
-  );
-  const kick = useCallback(
-    (playerId: string) => leaderAction((socket) => socket.emitWithAck('room:kick', { playerId })),
-    [leaderAction],
-  );
+
+  /** Fire and forget: a reaction that's rate-limited away isn't worth an error message. */
+  const react = useCallback((emoji: Reaction) => {
+    void socketRef.current?.emitWithAck('room:react', { emoji });
+  }, []);
 
   const reset = useCallback(() => {
     // The server disconnects everyone when a room closes, so start a fresh connection
@@ -188,5 +199,5 @@ export function useController() {
     setState({ status: 'idle' });
   }, []);
 
-  return { state, game, actionError, join, answer, startGame, endGame, kick, reset };
+  return { state, game, actionError, join, answer, react, leader, reset };
 }

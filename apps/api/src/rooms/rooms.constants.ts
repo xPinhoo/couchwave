@@ -1,6 +1,9 @@
 /** Injection token for the reconnect grace period in milliseconds. */
 export const RECONNECT_GRACE_MS = Symbol('RECONNECT_GRACE_MS');
 
+/** Injection token for how long a room survives without its TV screen, in milliseconds. */
+export const SCREEN_GRACE_MS = Symbol('SCREEN_GRACE_MS');
+
 /** Injection token for {@link TriviaConfig}. */
 export const TRIVIA_CONFIG = Symbol('TRIVIA_CONFIG');
 
