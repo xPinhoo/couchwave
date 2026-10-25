@@ -1,4 +1,5 @@
 import { CHOICE_STYLES } from '@couchwave/shared';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import { useCountdown } from '../useCountdown';
@@ -8,15 +9,26 @@ interface TriviaScreenProps {
   game: PlayerGame;
   /** False while our own connection is down. */
   connected: boolean;
+  /** The host can end the game or return everyone to the lobby. */
+  isLeader: boolean;
   onAnswer: (choice: number) => void;
+  onEnd: () => void;
 }
 
 const ordinal = (n: number) => `#${n}`;
 
-export function TriviaScreen({ game, connected, onAnswer }: TriviaScreenProps) {
+export function TriviaScreen({ game, connected, isLeader, onAnswer, onEnd }: TriviaScreenProps) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
   const standing = `${view.score} pts · ${ordinal(view.rank)} of ${view.playerCount}`;
+  // Ending a game early takes two taps, so a stray tap can't ruin it for everyone
+  const [confirmingEnd, setConfirmingEnd] = useState(false);
+
+  useEffect(() => {
+    if (!confirmingEnd) return;
+    const timeout = setTimeout(() => setConfirmingEnd(false), 3000);
+    return () => clearTimeout(timeout);
+  }, [confirmingEnd]);
 
   if (view.phase === 'finished') {
     return (
@@ -26,6 +38,18 @@ export function TriviaScreen({ game, connected, onAnswer }: TriviaScreenProps) {
           {view.rank === 1 ? '🏆 You won!' : `You finished ${ordinal(view.rank)}`}
         </Text>
         <Text style={styles.muted}>{view.score} points</Text>
+        {isLeader ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={!connected}
+            onPress={onEnd}
+            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryText}>Back to lobby</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.muted}>Waiting for the host to start another round…</Text>
+        )}
       </View>
     );
   }
@@ -50,6 +74,15 @@ export function TriviaScreen({ game, connected, onAnswer }: TriviaScreenProps) {
         Question {view.round}/{view.totalRounds}
       </Text>
       <Text style={styles.timer}>{Math.ceil(msLeft / 1000)}s</Text>
+      {isLeader && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => (confirmingEnd ? onEnd() : setConfirmingEnd(true))}
+          style={[styles.endButton, confirmingEnd && styles.endButtonArmed]}
+        >
+          <Text style={styles.endText}>{confirmingEnd ? 'Tap to confirm' : 'End game'}</Text>
+        </Pressable>
+      )}
     </View>
   );
 
@@ -186,6 +219,34 @@ const styles = StyleSheet.create({
   lockedSymbol: {
     color: colors.text,
     fontSize: 56,
+  },
+  endButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  endButtonArmed: {
+    borderColor: colors.danger,
+    backgroundColor: colors.danger,
+  },
+  endText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  primary: {
+    marginTop: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+  },
+  primaryText: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
   },
   correctBg: {
     backgroundColor: '#1d5a3f',

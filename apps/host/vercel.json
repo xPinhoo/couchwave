@@ -4,5 +4,6 @@
   "installCommand": "cd ../.. && npm ci --no-audit --no-fund",
   "buildCommand": "cd ../.. && npx turbo run build --filter=@couchwave/host",
   "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "git": { "deploymentEnabled": false }
 }

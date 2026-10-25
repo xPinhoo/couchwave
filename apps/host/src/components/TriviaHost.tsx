@@ -1,21 +1,22 @@
-import { CHOICE_STYLES, type PublicPlayer, type TriviaHostView } from '@couchwave/shared';
+import { CHOICE_STYLES, type LobbyState, type TriviaHostView } from '@couchwave/shared';
 import type { CSSProperties } from 'react';
 import type { HostGame } from '../useHostRoom';
 import { useCountdown } from '../useCountdown';
 
 interface TriviaHostProps {
   game: HostGame;
-  players: PublicPlayer[];
-  onEnd: () => void;
+  lobby: LobbyState;
 }
 
-export function TriviaHost({ game, players, onEnd }: TriviaHostProps) {
+/** Display only: the leader ends the game or goes back to the lobby from their phone. */
+export function TriviaHost({ game, lobby }: TriviaHostProps) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
-  const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? 'Player';
+  const nameOf = (id: string) => lobby.players.find((p) => p.id === id)?.name ?? 'Player';
 
   if (view.phase === 'finished') {
-    return <FinalScores view={view} nameOf={nameOf} onEnd={onEnd} />;
+    const leader = lobby.leaderId ? nameOf(lobby.leaderId) : null;
+    return <FinalScores view={view} nameOf={nameOf} leader={leader} />;
   }
 
   const revealed = view.phase === 'reveal';
@@ -31,9 +32,7 @@ export function TriviaHost({ game, players, onEnd }: TriviaHostProps) {
             {Math.ceil(msLeft / 1000)}
           </span>
         )}
-        <button type="button" className="link-button" onClick={onEnd}>
-          End game
-        </button>
+        <span className="eyebrow">Room {lobby.roomCode}</span>
       </header>
 
       <h1 className="prompt">{view.prompt}</h1>
@@ -85,11 +84,11 @@ export function TriviaHost({ game, players, onEnd }: TriviaHostProps) {
 function FinalScores({
   view,
   nameOf,
-  onEnd,
+  leader,
 }: {
   view: TriviaHostView;
   nameOf: (id: string) => string;
-  onEnd: () => void;
+  leader: string | null;
 }) {
   return (
     <main className="final">
@@ -103,9 +102,7 @@ function FinalScores({
           </li>
         ))}
       </ol>
-      <button type="button" className="primary-button" onClick={onEnd}>
-        Back to lobby
-      </button>
+      {leader && <p className="hint">{leader} can start another round from their phone</p>}
     </main>
   );
 }

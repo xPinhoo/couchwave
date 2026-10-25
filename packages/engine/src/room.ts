@@ -18,6 +18,8 @@ export interface Room {
   code: string;
   status: RoomStatus;
   players: Player[];
+  /** The player who controls the room from their phone (start, kick, end). */
+  leaderId: string | null;
   createdAt: number;
 }
 
@@ -35,7 +37,7 @@ export function generateRoomCode(random: () => number = Math.random): string {
 }
 
 export function createRoom(code: string, now: number): Room {
-  return { code, status: 'lobby', players: [], createdAt: now };
+  return { code, status: 'lobby', players: [], leaderId: null, createdAt: now };
 }
 
 export function addPlayer(
@@ -51,11 +53,27 @@ export function addPlayer(
   }
 
   const player: Player = { id: input.id, name: input.name, connected: true, joinedAt: input.now };
-  return { ok: true, room: { ...room, players: [...room.players, player] }, player };
+  return {
+    ok: true,
+    room: {
+      ...room,
+      players: [...room.players, player],
+      // The first player in becomes the leader
+      leaderId: room.leaderId ?? player.id,
+    },
+    player,
+  };
 }
 
+/** Removing the leader hands leadership to the next player, in join order. */
 export function removePlayer(room: Room, playerId: string): Room {
-  return { ...room, players: room.players.filter((p) => p.id !== playerId) };
+  const players = room.players.filter((p) => p.id !== playerId);
+  const leaderId = room.leaderId === playerId ? (players[0]?.id ?? null) : room.leaderId;
+  return { ...room, players, leaderId };
+}
+
+export function isLeader(room: Room, playerId: string | undefined): boolean {
+  return playerId !== undefined && room.leaderId === playerId;
 }
 
 /** A disconnected player keeps their seat (and name) until they come back or are removed. */
@@ -75,6 +93,7 @@ export function toLobbyState(room: Room): LobbyState {
     roomCode: room.code,
     status: room.status,
     players: room.players.map(({ id, name, connected }) => ({ id, name, connected })),
+    leaderId: room.leaderId,
     maxPlayers: MAX_PLAYERS,
   };
 }

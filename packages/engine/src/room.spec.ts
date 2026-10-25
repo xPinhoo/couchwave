@@ -4,6 +4,7 @@ import {
   addPlayer,
   createRoom,
   generateRoomCode,
+  isLeader,
   removePlayer,
   setPlayerConnected,
   toLobbyState,
@@ -69,6 +70,31 @@ describe('removePlayer', () => {
   });
 });
 
+describe('leader', () => {
+  it('is the first player to join', () => {
+    expect(createRoom('ABCD', 0).leaderId).toBeNull();
+    expect(roomWith('ana', 'rui').leaderId).toBe('ana');
+  });
+
+  it('passes to the next player in join order when the leader is removed', () => {
+    const room = removePlayer(roomWith('ana', 'rui', 'eva'), 'ana');
+    expect(room.leaderId).toBe('rui');
+    expect(isLeader(room, 'rui')).toBe(true);
+    expect(isLeader(room, 'ana')).toBe(false);
+  });
+
+  it('stays the same when someone else is removed, and is cleared when the room empties', () => {
+    expect(removePlayer(roomWith('ana', 'rui'), 'rui').leaderId).toBe('ana');
+    expect(removePlayer(roomWith('ana'), 'ana').leaderId).toBeNull();
+  });
+
+  it('goes to the next player who joins an empty room', () => {
+    const emptied = removePlayer(roomWith('ana'), 'ana');
+    const result = join(emptied, 'rui');
+    expect(result.ok && result.room.leaderId).toBe('rui');
+  });
+});
+
 describe('setPlayerConnected', () => {
   it('flags only the given player', () => {
     const room = setPlayerConnected(roomWith('a', 'b'), 'a', false);
@@ -87,6 +113,7 @@ describe('toLobbyState', () => {
       roomCode: 'ABCD',
       status: 'lobby',
       players: [{ id: 'Ana', name: 'Ana', connected: true }],
+      leaderId: 'Ana',
       maxPlayers: MAX_PLAYERS,
     });
   });

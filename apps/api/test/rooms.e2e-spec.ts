@@ -208,6 +208,71 @@ describe('Rooms (e2e)', () => {
     });
   });
 
+  describe('leader', () => {
+    it('can kick a player, who is told, disconnected and cannot come back with their token', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      const ruiKicked = next(rui.client, 'room:kicked');
+      const ruiGone = new Promise((resolve) => rui.client.once('disconnect', resolve));
+      const hostUpdate = next(host, 'lobby:update');
+
+      expect(await ana.client.emitWithAck('room:kick', { playerId: rui.playerId })).toEqual({
+        ok: true,
+        data: null,
+      });
+      await ruiKicked;
+      expect(await ruiGone).toBe('io server disconnect');
+      expect((await hostUpdate).players.map((p) => p.name)).toEqual(['Ana']);
+
+      const phone = await connect();
+      expect(await phone.emitWithAck('room:rejoin', { sessionToken: rui.sessionToken })).toEqual({
+        ok: false,
+        error: 'INVALID_SESSION',
+      });
+    });
+
+    it('only lets the leader kick, never themselves, and only in the lobby', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      expect(await rui.client.emitWithAck('room:kick', { playerId: ana.playerId })).toEqual({
+        ok: false,
+        error: 'NOT_LEADER',
+      });
+      expect(await ana.client.emitWithAck('room:kick', { playerId: ana.playerId })).toEqual({
+        ok: false,
+        error: 'INVALID_PAYLOAD',
+      });
+      expect(await ana.client.emitWithAck('room:kick', { playerId: 'nobody' })).toEqual({
+        ok: false,
+        error: 'PLAYER_NOT_FOUND',
+      });
+
+      await ana.client.emitWithAck('game:start');
+      expect(await ana.client.emitWithAck('room:kick', { playerId: rui.playerId })).toEqual({
+        ok: false,
+        error: 'GAME_IN_PROGRESS',
+      });
+    });
+
+    it('passes to the next player once the leader is gone for good', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      const ruiLeads = new Promise<void>((resolve) =>
+        host.on('lobby:update', (lobby) => lobby.leaderId === rui.playerId && resolve()),
+      );
+      ana.client.disconnect();
+      await ruiLeads; // after the grace period
+
+      expect(await rui.client.emitWithAck('game:start')).toEqual({ ok: true, data: null });
+    });
+  });
+
   describe('trivia', () => {
     type HostUpdate = Parameters<ServerToClientEvents['game:host']>[0];
     type PlayerUpdate = Parameters<ServerToClientEvents['game:player']>[0];
@@ -243,19 +308,22 @@ describe('Rooms (e2e)', () => {
 
       const hostQ1 = hostSees(host, (u) => u.view.phase === 'question');
       const anaQ1 = playerSees(ana.client, (u) => u.view.phase === 'question');
-      expect(await host.emitWithAck('game:start')).toEqual({ ok: true, data: null });
+      // Ana joined first, so she is the leader
+      expect(await ana.client.emitWithAck('game:start')).toEqual({ ok: true, data: null });
       return { host, roomCode, ana, rui, hostQ1: await hostQ1, anaQ1: await anaQ1 };
     }
 
-    it('only lets the host start, and only with players in the room', async () => {
+    it('only lets the leader start: not the TV screen, not other players', async () => {
       const { host, roomCode } = await createRoom();
-      expect(await host.emitWithAck('game:start')).toEqual({
-        ok: false,
-        error: 'NOT_ENOUGH_PLAYERS',
-      });
-
       const ana = await joinAs(roomCode, 'Ana');
-      expect(await ana.client.emitWithAck('game:start')).toEqual({ ok: false, error: 'NOT_HOST' });
+      const rui = await joinAs(roomCode, 'Rui');
+
+      expect(ana.lobby.leaderId).toBe(ana.playerId);
+      expect(await host.emitWithAck('game:start')).toEqual({ ok: false, error: 'NOT_LEADER' });
+      expect(await rui.client.emitWithAck('game:start')).toEqual({
+        ok: false,
+        error: 'NOT_LEADER',
+      });
     });
 
     it('sends the host the question and each player only their choices', async () => {
@@ -305,17 +373,18 @@ describe('Rooms (e2e)', () => {
       );
     });
 
-    it('blocks new players mid-game and returns to the lobby when the host ends it', async () => {
-      const { host, roomCode } = await startedGame();
+    it('blocks new players mid-game and returns to the lobby when the leader ends it', async () => {
+      const { host, roomCode, ana, rui } = await startedGame();
 
       const late = await connect();
       expect(await late.emitWithAck('room:join', { roomCode, name: 'Late' })).toEqual({
         ok: false,
         error: 'GAME_IN_PROGRESS',
       });
+      expect(await rui.client.emitWithAck('game:end')).toEqual({ ok: false, error: 'NOT_LEADER' });
 
       const backInLobby = next(host, 'lobby:update');
-      expect(await host.emitWithAck('game:end')).toEqual({ ok: true, data: null });
+      expect(await ana.client.emitWithAck('game:end')).toEqual({ ok: true, data: null });
       expect((await backInLobby).status).toBe('lobby');
     });
 

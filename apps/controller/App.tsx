@@ -9,23 +9,41 @@ import { colors } from './src/theme';
 import { useController } from './src/useController';
 
 export default function App() {
-  const { state, game, join, answer, reset } = useController();
+  const { state, game, actionError, join, answer, startGame, endGame, kick, reset } =
+    useController();
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="light" />
         {state.status === 'lobby' && state.lobby.status === 'playing' && game ? (
-          <TriviaScreen game={game} connected={state.connected} onAnswer={answer} />
+          <TriviaScreen
+            game={game}
+            connected={state.connected}
+            isLeader={state.lobby.leaderId === state.playerId}
+            onAnswer={answer}
+            onEnd={() => void endGame()}
+          />
         ) : state.status === 'lobby' ? (
-          <LobbyScreen playerId={state.playerId} lobby={state.lobby} connected={state.connected} />
+          <LobbyScreen
+            playerId={state.playerId}
+            lobby={state.lobby}
+            connected={state.connected}
+            error={actionError}
+            onStart={() => void startGame()}
+            onKick={(id) => void kick(id)}
+          />
         ) : state.status === 'rejoining' ? (
           <View style={styles.centered}>
             <Text style={styles.message}>Reconnecting…</Text>
           </View>
-        ) : state.status === 'closed' ? (
+        ) : state.status === 'closed' || state.status === 'kicked' ? (
           <View style={styles.centered}>
-            <Text style={styles.message}>The host closed the room.</Text>
+            <Text style={styles.message}>
+              {state.status === 'kicked'
+                ? 'The host removed you from the room.'
+                : 'The game screen was closed.'}
+            </Text>
             <Pressable accessibilityRole="button" onPress={reset}>
               <Text style={styles.link}>Join another room</Text>
             </Pressable>

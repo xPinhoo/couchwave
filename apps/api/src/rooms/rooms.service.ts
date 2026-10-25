@@ -140,6 +140,21 @@ export class RoomsService {
     return updated;
   }
 
+  /**
+   * Removes a player straight away and cancels their session so they can't rejoin with it.
+   * Returns the socket that held the seat, so the caller can disconnect it.
+   */
+  kick(code: string, playerId: string): { room: Room; connectionId?: string } | undefined {
+    const room = this.rooms.get(code);
+    if (!room?.players.some((p) => p.id === playerId)) return undefined;
+
+    const session = this.sessionsByPlayer.get(playerId);
+    if (session) this.deleteSession(session);
+    const updated = removePlayer(room, playerId);
+    this.rooms.set(code, updated);
+    return { room: updated, connectionId: session?.connectionId };
+  }
+
   /** Deletes the room and its sessions; returns the ids of the players who were in it. */
   close(code: string): string[] {
     const room = this.rooms.get(code);

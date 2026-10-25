@@ -21,7 +21,9 @@ export type ControllerState =
   /** Trying to get back into a room we were in (after a reload or a dropped connection). */
   | { status: 'rejoining' }
   | { status: 'lobby'; playerId: string; lobby: LobbyState; connected: boolean }
-  | { status: 'closed' };
+  | { status: 'closed' }
+  /** The host removed us from the room. */
+  | { status: 'kicked' };
 
 export interface PlayerGame {
   update: GameUpdate<TriviaPlayerView>;
@@ -30,7 +32,8 @@ export interface PlayerGame {
 }
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
-  NOT_HOST: 'Only the host can do that.',
+  NOT_LEADER: 'Only the host can do that.',
+  PLAYER_NOT_FOUND: 'That player already left.',
   NOT_A_PLAYER: 'Join the room first.',
   NOT_ENOUGH_PLAYERS: 'Not enough players to start.',
   NO_GAME: 'No game is running.',
@@ -56,6 +59,8 @@ export function useController() {
     loadSession() ? { status: 'rejoining' } : { status: 'idle' },
   );
   const [game, setGame] = useState<PlayerGame | null>(null);
+  /** Error from the last host action (start, kick, end), shown in the lobby. */
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const socket: ControllerSocket = io(API_URL, { transports: ['websocket'] });
@@ -102,6 +107,12 @@ export function useController() {
       setGame(null);
       setState({ status: 'closed' });
     });
+    // Arrives just before the server disconnects us, so the disconnect handler sees 'kicked'
+    socket.on('room:kicked', () => {
+      clearSession();
+      setGame(null);
+      setState({ status: 'kicked' });
+    });
 
     // Phones suspend apps in the background; reconnect right away when we come back
     // instead of waiting for the next automatic retry.
@@ -143,11 +154,36 @@ export function useController() {
     void socketRef.current?.emitWithAck('game:answer', { choice });
   }, []);
 
+  /** Runs a host-only action and surfaces its error, if any. */
+  const leaderAction = useCallback(
+    async (send: (socket: ControllerSocket) => Promise<{ ok: boolean; error?: ErrorCode }>) => {
+      const socket = socketRef.current;
+      if (!socket) return;
+      setActionError(null);
+      const res = await send(socket);
+      if (!res.ok && res.error) setActionError(ERROR_MESSAGES[res.error]);
+    },
+    [],
+  );
+
+  const startGame = useCallback(
+    () => leaderAction((socket) => socket.emitWithAck('game:start')),
+    [leaderAction],
+  );
+  const endGame = useCallback(
+    () => leaderAction((socket) => socket.emitWithAck('game:end')),
+    [leaderAction],
+  );
+  const kick = useCallback(
+    (playerId: string) => leaderAction((socket) => socket.emitWithAck('room:kick', { playerId })),
+    [leaderAction],
+  );
+
   const reset = useCallback(() => {
     // The server disconnects everyone when a room closes, so start a fresh connection
     socketRef.current?.connect();
     setState({ status: 'idle' });
   }, []);
 
-  return { state, game, join, answer, reset };
+  return { state, game, actionError, join, answer, startGame, endGame, kick, reset };
 }

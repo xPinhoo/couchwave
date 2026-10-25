@@ -5,7 +5,7 @@ import type {
   ServerToClientEvents,
   TriviaHostView,
 } from '@couchwave/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL } from './config';
 
@@ -22,15 +22,16 @@ export interface HostGame {
   receivedAt: number;
 }
 
-/** Connects to the API, creates a room and keeps its lobby and game in sync. */
+/**
+ * Connects to the API, creates a room and keeps its lobby and game in sync. The TV only
+ * listens: all commands come from the leader's phone.
+ */
 export function useHostRoom() {
-  const socketRef = useRef<HostSocket | null>(null);
   const [room, setRoom] = useState<HostRoomState>({ status: 'connecting' });
   const [game, setGame] = useState<HostGame | null>(null);
 
   useEffect(() => {
     const socket: HostSocket = io(API_URL, { transports: ['websocket'] });
-    socketRef.current = socket;
 
     socket.on('connect', async () => {
       const res = await socket.emitWithAck('room:create');
@@ -52,14 +53,5 @@ export function useHostRoom() {
     };
   }, []);
 
-  const startGame = useCallback(async () => {
-    const res = await socketRef.current?.emitWithAck('game:start');
-    return res?.ok ? null : (res?.error ?? 'NOT_CONNECTED');
-  }, []);
-
-  const endGame = useCallback(async () => {
-    await socketRef.current?.emitWithAck('game:end');
-  }, []);
-
-  return { room, game, startGame, endGame };
+  return { room, game };
 }

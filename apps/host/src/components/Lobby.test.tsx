@@ -1,6 +1,6 @@
 import type { LobbyState } from '@couchwave/shared';
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { Lobby } from './Lobby';
 
 const lobby = (players: string[]): LobbyState => ({
@@ -8,57 +8,50 @@ const lobby = (players: string[]): LobbyState => ({
   status: 'lobby',
   maxPlayers: 8,
   players: players.map((name, i) => ({ id: `p${i}`, name, connected: true })),
+  leaderId: players.length > 0 ? 'p0' : null,
 });
 
-const renderLobby = (
-  state: LobbyState,
-  onStart: () => Promise<string | null> = vi.fn<() => Promise<string | null>>(async () => null),
-) => render(<Lobby lobby={state} controllerUrl="http://play.test" onStart={onStart} />);
+const renderLobby = (state: LobbyState) =>
+  render(<Lobby lobby={state} controllerUrl="http://play.test" />);
+
+const seats = () =>
+  within(screen.getByRole('region', { name: 'Players' }))
+    .getAllByRole('listitem')
+    .filter((li) => li.textContent);
 
 describe('Lobby', () => {
-  it('shows the room code and the join link', () => {
+  it('shows the room code and the join link, and explains who becomes host', () => {
     renderLobby(lobby([]));
 
     expect(screen.getByLabelText('Room code')).toHaveTextContent('WXYZ');
     expect(screen.getByText('http://play.test/?room=WXYZ')).toBeInTheDocument();
-    expect(screen.getByText('Waiting for players…')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Start trivia' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Waiting for players… the first to join becomes the host 👑'),
+    ).toBeInTheDocument();
   });
 
-  it('lists the players who joined', () => {
+  it('crowns the leader and says who everyone is waiting for', () => {
     renderLobby(lobby(['Ana', 'Rui']));
-    const players = screen.getByRole('region', { name: 'Players' });
 
-    expect(within(players).getByText('Players 2/8')).toBeInTheDocument();
+    expect(seats().map((li) => li.textContent)).toEqual(['👑Ana', 'Rui']);
     expect(
-      within(players)
-        .getAllByRole('listitem')
-        .map((li) => li.textContent),
-    ).toEqual(['Ana', 'Rui']);
-    expect(screen.queryByText('Waiting for players…')).not.toBeInTheDocument();
+      screen.getByText('Waiting for Ana to start the game from their phone…'),
+    ).toBeInTheDocument();
+  });
+
+  it('has no controls: the TV only displays', () => {
+    renderLobby(lobby(['Ana']));
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('keeps the seat of a disconnected player and marks it as reconnecting', () => {
     const state = lobby(['Ana', 'Rui']);
-    state.players[0]!.connected = false;
+    state.players[1]!.connected = false;
     renderLobby(state);
 
-    const [ana, rui] = within(screen.getByRole('region', { name: 'Players' })).getAllByRole(
-      'listitem',
-    );
-    expect(ana).toHaveClass('away');
-    expect(ana).toHaveTextContent('Anareconnecting…');
-    expect(rui).not.toHaveClass('away');
-  });
-
-  it('starts the game and shows an error if the server refuses', async () => {
-    const onStart = vi.fn<() => Promise<string | null>>(async () => 'NOT_ENOUGH_PLAYERS');
-    renderLobby(lobby(['Ana']), onStart);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Start trivia' }));
-    expect(onStart).toHaveBeenCalledOnce();
-    expect(
-      await screen.findByText("Couldn't start the game (NOT_ENOUGH_PLAYERS)."),
-    ).toBeInTheDocument();
+    const [ana, rui] = seats();
+    expect(rui).toHaveClass('away');
+    expect(rui).toHaveTextContent('Ruireconnecting…');
+    expect(ana).not.toHaveClass('away');
   });
 });

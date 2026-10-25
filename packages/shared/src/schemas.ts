@@ -36,3 +36,9 @@ export const answerSchema = z.object({
 });
 
 export type AnswerPayload = z.input<typeof answerSchema>;
+
+export const kickPlayerSchema = z.object({
+  playerId: z.string().min(1).max(64),
+});
+
+export type KickPlayerPayload = z.input<typeof kickPlayerSchema>;

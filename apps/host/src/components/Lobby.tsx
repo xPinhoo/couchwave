@@ -1,25 +1,15 @@
 import type { LobbyState } from '@couchwave/shared';
 import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
 
 interface LobbyProps {
   lobby: LobbyState;
   controllerUrl: string;
-  /** Resolves with an error code, or null once the game started. */
-  onStart: () => Promise<string | null>;
 }
 
-export function Lobby({ lobby, controllerUrl, onStart }: LobbyProps) {
+export function Lobby({ lobby, controllerUrl }: LobbyProps) {
   const joinUrl = `${controllerUrl}/?room=${lobby.roomCode}`;
   const emptySeats = lobby.maxPlayers - lobby.players.length;
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function start() {
-    setStarting(true);
-    setError(await onStart());
-    setStarting(false);
-  }
+  const leader = lobby.players.find((p) => p.id === lobby.leaderId);
 
   return (
     <main className="lobby">
@@ -41,6 +31,11 @@ export function Lobby({ lobby, controllerUrl, onStart }: LobbyProps) {
         <ul>
           {lobby.players.map((player) => (
             <li key={player.id} className={player.connected ? 'seat taken' : 'seat taken away'}>
+              {player.id === lobby.leaderId && (
+                <span className="crown" aria-label="Host">
+                  👑
+                </span>
+              )}
               {player.name}
               {!player.connected && <span className="seat-status">reconnecting…</span>}
             </li>
@@ -49,21 +44,11 @@ export function Lobby({ lobby, controllerUrl, onStart }: LobbyProps) {
             <li key={`empty-${i}`} className="seat" aria-hidden="true" />
           ))}
         </ul>
-        {lobby.players.length === 0 ? (
-          <p className="hint">Waiting for players…</p>
-        ) : (
-          <div className="start">
-            <button
-              type="button"
-              className="primary-button"
-              disabled={starting}
-              onClick={() => void start()}
-            >
-              Start trivia
-            </button>
-            {error && <p className="error">Couldn't start the game ({error}).</p>}
-          </div>
-        )}
+        <p className="hint lobby-status">
+          {leader
+            ? `Waiting for ${leader.name} to start the game from their phone…`
+            : 'Waiting for players… the first to join becomes the host 👑'}
+        </p>
       </section>
     </main>
   );

@@ -1,12 +1,18 @@
-import type { TriviaHostView } from '@couchwave/shared';
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import type { LobbyState, TriviaHostView } from '@couchwave/shared';
+import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { TriviaHost } from './TriviaHost';
 
-const players = [
-  { id: 'ana', name: 'Ana', connected: true },
-  { id: 'rui', name: 'Rui', connected: true },
-];
+const lobby: LobbyState = {
+  roomCode: 'WXYZ',
+  status: 'playing',
+  maxPlayers: 8,
+  leaderId: 'ana',
+  players: [
+    { id: 'ana', name: 'Ana', connected: true },
+    { id: 'rui', name: 'Rui', connected: true },
+  ],
+};
 
 function view(overrides: Partial<TriviaHostView> = {}): TriviaHostView {
   return {
@@ -29,12 +35,11 @@ function view(overrides: Partial<TriviaHostView> = {}): TriviaHostView {
   };
 }
 
-const renderHost = (v: TriviaHostView, onEnd = vi.fn<() => void>()) =>
+const renderHost = (v: TriviaHostView) =>
   render(
     <TriviaHost
       game={{ update: { serverTime: 0, view: v }, receivedAt: Date.now() }}
-      players={players}
-      onEnd={onEnd}
+      lobby={lobby}
     />,
   );
 
@@ -53,6 +58,7 @@ describe('TriviaHost', () => {
     ).toEqual(['▲Sydney', '◆Canberra', '●Melbourne', '■Perth']);
     expect(screen.getByText('1/2 answered')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Leaderboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('highlights the correct answer and shows the leaderboard during the reveal', () => {
@@ -68,17 +74,14 @@ describe('TriviaHost', () => {
     ).toEqual(['Rui1800 +900', 'Ana700']);
   });
 
-  it('shows the final scores and goes back to the lobby', () => {
-    const onEnd = vi.fn<() => void>();
-    renderHost(view({ phase: 'finished', endsAt: null }), onEnd);
+  it('shows the final scores and tells everyone the host can start another round', () => {
+    renderHost(view({ phase: 'finished', endsAt: null }));
 
     const podium = within(screen.getByRole('list', { name: 'Final scores' })).getAllByRole(
       'listitem',
     );
     expect(podium[0]).toHaveTextContent('1Rui1800');
     expect(podium[0]).toHaveClass('winner');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Back to lobby' }));
-    expect(onEnd).toHaveBeenCalledOnce();
+    expect(screen.getByText('Ana can start another round from their phone')).toBeInTheDocument();
   });
 });

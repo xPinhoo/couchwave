@@ -2,9 +2,13 @@
 
 Party games on the big screen, played with your phone as the controller.
 
-The **host** runs on a TV or laptop and shows a room code and QR code. Friends join from the
-**controller** app on their phones (native via Expo, or straight from the browser) and play
-mini-games together in real time over WebSockets.
+The **host** app is the website: a home page, and a full-screen TV view (`/room`) that shows a
+room code and QR code. Friends join from the **controller** app on their phones (native via
+Expo, or straight from the browser) and play mini-games together in real time over WebSockets.
+
+The TV only displays. The **first player to join becomes the room's host 👑** (called the
+_leader_ in the code, since "host" already names the TV app): they start and end games and can
+kick players from their phone. If they leave for good, the next player in join order takes over.
 
 ## Architecture
 
@@ -145,7 +149,10 @@ If a name is already taken (the Fly app or a `*.vercel.app` domain), update the 
 - [x] **M1a** Reconnection with a grace period
 - [x] **M1b** Deploy API + web apps
 - [x] **M2** First mini-game: quick-fire trivia
-- [ ] **M3** Native controller polish: QR scanning, haptics
-- [ ] **M4** Bluff and draw-and-guess games
-- [ ] **M5** Accounts, custom question packs, game history
-- [ ] **M6** Redis-backed rooms, load testing, observability
+- [x] **M3a** Home, About and Contacts pages; first player is the host (start, kick, end)
+- [ ] **M3b** Games library navigated from the host's phone; TV reconnection; rooms close
+      when nobody is connected
+- [ ] **M4** Accounts (email/password + Google), profiles, contact form backed by a database
+- [ ] **M5** Native app: QR scanner, deep links, haptics, game history, "recently played with"
+- [ ] **M6** More games: bluff, draw & guess
+- [ ] **M7** Redis-backed rooms, load testing, observability

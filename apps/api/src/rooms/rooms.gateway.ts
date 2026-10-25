@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { toLobbyState, trivia, type Room } from '@couchwave/engine';
+import { isLeader, toLobbyState, trivia, type Room } from '@couchwave/engine';
 import {
   answerSchema,
   joinRoomSchema,
+  kickPlayerSchema,
   rejoinRoomSchema,
   type ClientToServerEvents,
   type JoinedRoom,
@@ -138,13 +139,36 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     return { ok: true, data: { playerId: result.playerId, sessionToken, lobby } };
   }
 
+  @SubscribeMessage('room:kick')
+  handleKick(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): Result<null> {
+    const room = this.leaderRoom(socket);
+    if (!room) return { ok: false, error: 'NOT_LEADER' };
+
+    const parsed = kickPlayerSchema.safeParse(body);
+    if (!parsed.success || parsed.data.playerId === socket.data.playerId) {
+      return { ok: false, error: 'INVALID_PAYLOAD' };
+    }
+    // Removing someone mid-game would leave the game waiting for their answers
+    if (room.status === 'playing') return { ok: false, error: 'GAME_IN_PROGRESS' };
+
+    const { playerId } = parsed.data;
+    const kicked = this.rooms.kick(room.code, playerId);
+    if (!kicked) return { ok: false, error: 'PLAYER_NOT_FOUND' };
+
+    this.cancelGraceTimer(playerId);
+    this.server.to(playerChannel(playerId)).emit('room:kicked');
+    this.server.in(playerChannel(playerId)).disconnectSockets(true);
+    this.server.to(room.code).emit('lobby:update', toLobbyState(kicked.room));
+
+    this.logger.log(`Player ${playerId} kicked from ${room.code}`);
+    return { ok: true, data: null };
+  }
+
   @SubscribeMessage('game:start')
   handleStart(@ConnectedSocket() socket: GameSocket): Result<null> {
-    const { roomCode, role } = socket.data;
-    if (!roomCode || role !== 'host') return { ok: false, error: 'NOT_HOST' };
-
-    const room = this.rooms.get(roomCode);
-    if (!room) return { ok: false, error: 'ROOM_NOT_FOUND' };
+    const room = this.leaderRoom(socket);
+    if (!room) return { ok: false, error: 'NOT_LEADER' };
+    const roomCode = room.code;
     if (room.status === 'playing') return { ok: false, error: 'GAME_IN_PROGRESS' };
     if (room.players.length < trivia.minPlayers) return { ok: false, error: 'NOT_ENOUGH_PLAYERS' };
 
@@ -181,8 +205,9 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
 
   @SubscribeMessage('game:end')
   handleEnd(@ConnectedSocket() socket: GameSocket): Result<null> {
-    const { roomCode, role } = socket.data;
-    if (!roomCode || role !== 'host') return { ok: false, error: 'NOT_HOST' };
+    const leaderRoom = this.leaderRoom(socket);
+    if (!leaderRoom) return { ok: false, error: 'NOT_LEADER' };
+    const roomCode = leaderRoom.code;
     if (!this.games.get(roomCode)) return { ok: false, error: 'NO_GAME' };
 
     this.stopGame(roomCode);
@@ -219,7 +244,14 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     this.gameLoops.clear();
   }
 
-  /** Sends the host its view and every player their own private view. */
+  /** The socket's room, if the socket belongs to that room's leader. */
+  private leaderRoom(socket: GameSocket): Room | undefined {
+    const { roomCode, role, playerId } = socket.data;
+    const room = roomCode ? this.rooms.get(roomCode) : undefined;
+    return room && role === 'player' && isLeader(room, playerId) ? room : undefined;
+  }
+
+  /** Sends the TV screen its view and every player their own private view. */
   private broadcastGame(roomCode: string): void {
     const game = this.games.get(roomCode);
     if (!game) return;
