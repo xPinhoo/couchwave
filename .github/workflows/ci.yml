@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # "Run workflow" button in the Actions tab: re-run checks and redeploy main on demand
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -68,7 +70,7 @@ jobs:
   # Deploys are skipped (not failed) until the credentials are added to the repo secrets
   deploy-config:
     name: Check deploy credentials
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       fly: ${{ steps.check.outputs.fly }}
