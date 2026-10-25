@@ -6,4 +6,5 @@ export const colors = {
   muted: '#a39dc2',
   accent: '#7c5cff',
   danger: '#ff6b6b',
+  warning: '#ffc857',
 };

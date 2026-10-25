@@ -5,20 +5,35 @@ import { colors } from '../theme';
 interface LobbyScreenProps {
   playerId: string;
   lobby: LobbyState;
+  /** False while our own connection is down and we are trying to get back in. */
+  connected: boolean;
 }
 
-export function LobbyScreen({ playerId, lobby }: LobbyScreenProps) {
+export function LobbyScreen({ playerId, lobby, connected }: LobbyScreenProps) {
   const me = lobby.players.find((p) => p.id === playerId);
 
   return (
     <View style={styles.container}>
+      {!connected && (
+        <Text style={styles.banner} accessibilityRole="alert">
+          Connection lost — reconnecting…
+        </Text>
+      )}
+
       <Text style={styles.eyebrow}>Room {lobby.roomCode}</Text>
       <Text style={styles.title}>You're in, {me?.name}!</Text>
       <Text style={styles.muted}>Look at the big screen — the game starts soon.</Text>
 
       <View style={styles.players}>
         {lobby.players.map((player) => (
-          <Text key={player.id} style={[styles.player, player.id === playerId && styles.playerMe]}>
+          <Text
+            key={player.id}
+            style={[
+              styles.player,
+              player.id === playerId && styles.playerMe,
+              !player.connected && styles.playerAway,
+            ]}
+          >
             {player.name}
           </Text>
         ))}
@@ -33,6 +48,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
     gap: 12,
+  },
+  banner: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.warning,
+    color: colors.bg,
+    fontWeight: '700',
+    textAlign: 'center',
+    overflow: 'hidden',
   },
   eyebrow: {
     color: colors.muted,
@@ -69,5 +97,8 @@ const styles = StyleSheet.create({
   },
   playerMe: {
     borderColor: colors.accent,
+  },
+  playerAway: {
+    opacity: 0.4,
   },
 });

@@ -59,6 +59,14 @@ export function removePlayer(room: Room, playerId: string): Room {
   return { ...room, players: room.players.filter((p) => p.id !== playerId) };
 }
 
+/** A disconnected player keeps their seat (and name) until they come back or are removed. */
+export function setPlayerConnected(room: Room, playerId: string, connected: boolean): Room {
+  return {
+    ...room,
+    players: room.players.map((p) => (p.id === playerId ? { ...p, connected } : p)),
+  };
+}
+
 export function toLobbyState(room: Room): LobbyState {
   return {
     roomCode: room.code,

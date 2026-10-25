@@ -5,6 +5,7 @@ import {
   createRoom,
   generateRoomCode,
   removePlayer,
+  setPlayerConnected,
   toLobbyState,
   type Room,
 } from './room.js';
@@ -65,6 +66,18 @@ describe('removePlayer', () => {
   it('removes only the given player', () => {
     const room = removePlayer(roomWith('a', 'b', 'c'), 'b');
     expect(room.players.map((p) => p.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('setPlayerConnected', () => {
+  it('flags only the given player', () => {
+    const room = setPlayerConnected(roomWith('a', 'b'), 'a', false);
+    expect(room.players.map((p) => p.connected)).toEqual([false, true]);
+  });
+
+  it('keeps a disconnected player in their seat so the name stays reserved', () => {
+    const room = setPlayerConnected(roomWith('Ana'), 'Ana', false);
+    expect(join(room, 'p2', 'Ana')).toEqual({ ok: false, error: 'NAME_TAKEN' });
   });
 });
 

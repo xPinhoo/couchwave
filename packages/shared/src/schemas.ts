@@ -19,3 +19,9 @@ export const joinRoomSchema = z.object({
 });
 
 export type JoinRoomPayload = z.input<typeof joinRoomSchema>;
+
+export const rejoinRoomSchema = z.object({
+  sessionToken: z.string().min(1).max(128),
+});
+
+export type RejoinRoomPayload = z.input<typeof rejoinRoomSchema>;

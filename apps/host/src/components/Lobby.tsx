@@ -29,8 +29,9 @@ export function Lobby({ lobby, controllerUrl }: LobbyProps) {
         </h2>
         <ul>
           {lobby.players.map((player) => (
-            <li key={player.id} className="seat taken">
+            <li key={player.id} className={player.connected ? 'seat taken' : 'seat taken away'}>
               {player.name}
+              {!player.connected && <span className="seat-status">reconnecting…</span>}
             </li>
           ))}
           {Array.from({ length: emptySeats }, (_, i) => (

@@ -15,10 +15,14 @@ export default function App() {
       <SafeAreaView style={styles.root}>
         <StatusBar style="light" />
         {state.status === 'lobby' ? (
-          <LobbyScreen playerId={state.playerId} lobby={state.lobby} />
+          <LobbyScreen playerId={state.playerId} lobby={state.lobby} connected={state.connected} />
+        ) : state.status === 'rejoining' ? (
+          <View style={styles.centered}>
+            <Text style={styles.message}>Reconnecting…</Text>
+          </View>
         ) : state.status === 'closed' ? (
-          <View style={styles.closed}>
-            <Text style={styles.closedText}>The host closed the room.</Text>
+          <View style={styles.centered}>
+            <Text style={styles.message}>The host closed the room.</Text>
             <Pressable accessibilityRole="button" onPress={reset}>
               <Text style={styles.link}>Join another room</Text>
             </Pressable>
@@ -41,13 +45,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  closed: {
+  centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
   },
-  closedText: {
+  message: {
     color: colors.text,
     fontSize: 20,
   },

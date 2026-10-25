@@ -111,6 +111,23 @@ body {
   animation: pop 300ms ease-out;
 }
 
+.seat.away {
+  border-style: dashed;
+  opacity: 0.5;
+  animation: none;
+}
+
+.seat-status {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.seat:has(.seat-status) {
+  place-content: center;
+}
+
 @keyframes pop {
   from {
     transform: scale(0.8);

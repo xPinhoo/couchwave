@@ -6,8 +6,11 @@ import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
+import { RECONNECT_GRACE_MS } from '../src/rooms/rooms.constants.js';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+const GRACE_MS = 300;
 
 describe('Rooms (e2e)', () => {
   let app: INestApplication;
@@ -15,7 +18,10 @@ describe('Rooms (e2e)', () => {
   const clients: Client[] = [];
 
   beforeEach(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(RECONNECT_GRACE_MS)
+      .useValue(GRACE_MS)
+      .compile();
     app = moduleRef.createNestApplication({ logger: false });
     await app.listen(0, '127.0.0.1');
     const { port } = app.getHttpServer().address() as AddressInfo;
@@ -42,6 +48,13 @@ describe('Rooms (e2e)', () => {
     const res = await host.emitWithAck('room:create');
     if (!res.ok) throw new Error(res.error);
     return { host, roomCode: res.data.roomCode };
+  }
+
+  async function joinAs(roomCode: string, name: string) {
+    const client = await connect();
+    const res = await client.emitWithAck('room:join', { roomCode, name });
+    if (!res.ok) throw new Error(res.error);
+    return { client, ...res.data };
   }
 
   const next = <E extends keyof ServerToClientEvents>(client: Client, event: E) =>
@@ -104,14 +117,76 @@ describe('Rooms (e2e)', () => {
     });
   });
 
-  it('updates the lobby when a player disconnects', async () => {
-    const { host, roomCode } = await createRoom();
-    const ana = await connect();
-    await ana.emitWithAck('room:join', { roomCode, name: 'Ana' });
+  describe('reconnection', () => {
+    it('keeps a disconnected player seated, then frees the seat after the grace period', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
 
-    const update = next(host, 'lobby:update');
-    ana.disconnect();
-    expect((await update).players).toEqual([]);
+      const markedAway = next(host, 'lobby:update');
+      ana.client.disconnect();
+      expect((await markedAway).players).toEqual([
+        { id: ana.playerId, name: 'Ana', connected: false },
+      ]);
+
+      const removed = next(host, 'lobby:update');
+      expect((await removed).players).toEqual([]);
+    });
+
+    it('gives the same seat back when the player rejoins in time', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+
+      const markedAway = next(host, 'lobby:update');
+      ana.client.disconnect();
+      await markedAway;
+
+      const back = next(host, 'lobby:update');
+      const phone = await connect();
+      const res = await phone.emitWithAck('room:rejoin', { sessionToken: ana.sessionToken });
+
+      expect(res).toMatchObject({ ok: true, data: { playerId: ana.playerId } });
+      expect((await back).players).toEqual([{ id: ana.playerId, name: 'Ana', connected: true }]);
+
+      // Waiting past the grace period must not remove a player who came back
+      await new Promise((resolve) => setTimeout(resolve, GRACE_MS * 2));
+      const rui = await joinAs(roomCode, 'Rui');
+      expect(rui.lobby.players.map((p) => [p.name, p.connected])).toEqual([
+        ['Ana', true],
+        ['Rui', true],
+      ]);
+    });
+
+    it('takes over the seat from a stale connection that has not timed out yet', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+
+      const oldKicked = new Promise((resolve) => ana.client.once('disconnect', resolve));
+      const phone = await connect();
+      const res = await phone.emitWithAck('room:rejoin', { sessionToken: ana.sessionToken });
+      expect(res.ok).toBe(true);
+      expect(await oldKicked).toBe('io server disconnect');
+
+      // The kicked socket's disconnect must not mark the player as away
+      const rui = await joinAs(roomCode, 'Rui');
+      expect(rui.lobby.players.map((p) => p.connected)).toEqual([true, true]);
+    });
+
+    it('rejects an unknown or expired session token', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      ana.client.disconnect();
+      await new Promise((resolve) => setTimeout(resolve, GRACE_MS * 2));
+
+      const phone = await connect();
+      expect(await phone.emitWithAck('room:rejoin', { sessionToken: 'nope' })).toEqual({
+        ok: false,
+        error: 'INVALID_SESSION',
+      });
+      expect(await phone.emitWithAck('room:rejoin', { sessionToken: ana.sessionToken })).toEqual({
+        ok: false,
+        error: 'INVALID_SESSION',
+      });
+    });
   });
 
   it('closes the room for everyone when the host leaves', async () => {

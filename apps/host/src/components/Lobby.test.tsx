@@ -30,4 +30,17 @@ describe('Lobby', () => {
     ).toEqual(['Ana', 'Rui']);
     expect(screen.queryByText('Waiting for players…')).not.toBeInTheDocument();
   });
+
+  it('keeps the seat of a disconnected player and marks it as reconnecting', () => {
+    const state = lobby(['Ana', 'Rui']);
+    state.players[0]!.connected = false;
+    render(<Lobby lobby={state} controllerUrl="http://play.test" />);
+
+    const [ana, rui] = within(screen.getByRole('region', { name: 'Players' })).getAllByRole(
+      'listitem',
+    );
+    expect(ana).toHaveClass('away');
+    expect(ana).toHaveTextContent('Anareconnecting…');
+    expect(rui).not.toHaveClass('away');
+  });
 });
