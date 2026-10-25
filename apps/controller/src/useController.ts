@@ -12,6 +12,7 @@ import { AppState } from 'react-native';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL } from './config';
 import { clearSession, loadSession, saveSession } from './session';
+import { waitForConnection } from './waitForConnection';
 
 type ControllerSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -129,12 +130,14 @@ export function useController() {
   const join = useCallback(async (roomCode: string, name: string) => {
     const socket = socketRef.current;
     if (!socket) return;
-    if (!socket.connected) {
+
+    // Show "Joining…" while the socket may still be connecting (e.g. right after the page loads)
+    setState({ status: 'joining' });
+    if (!(await waitForConnection(socket))) {
       setState({ status: 'idle', error: `Can't reach the server at ${API_URL}` });
       return;
     }
 
-    setState({ status: 'joining' });
     const res = await socket.emitWithAck('room:join', { roomCode, name });
     if (res.ok) {
       saveSession({ sessionToken: res.data.sessionToken });
