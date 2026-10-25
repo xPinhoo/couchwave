@@ -72,6 +72,61 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 | `npm run lint`      | oxlint                                        |
 | `npm run format`    | Prettier                                      |
 
+## Deployment
+
+| App        | Where  | URL                                     |
+| ---------- | ------ | --------------------------------------- |
+| API        | Fly.io | https://couchwave-api.fly.dev           |
+| Host       | Vercel | https://couchwave-host.vercel.app       |
+| Controller | Vercel | https://couchwave-controller.vercel.app |
+
+Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
+
+1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
+2. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile)
+3. **deploy-api**: `flyctl deploy`, then a smoke test against `/health`
+4. **deploy-web**: builds the host and controller on the runner and uploads the output to
+   Vercel. This runs after the API so the web apps never talk to an older API.
+
+Pull requests run steps 1 and 2 only. Deploy jobs are skipped (not failed) while their
+credentials are missing.
+
+The API runs on **a single machine** on purpose: rooms live in memory, so two machines would
+each have their own rooms. Running more than one instance needs Redis (M6). The machine stops
+when idle and starts again on the next request. Deploys restart it, which ends any games in
+progress.
+
+### One-time setup
+
+**Fly.io**
+
+1. Install flyctl and sign in: `fly auth login`
+2. Create the app: `fly apps create couchwave-api`
+3. Create a deploy token: `fly tokens create deploy -a couchwave-api`
+
+**Vercel**
+
+1. Sign in at vercel.com with GitHub and create two projects from this repository:
+   `couchwave-host` with Root Directory `apps/host`, and `couchwave-controller` with Root
+   Directory `apps/controller`. Vercel's own Git deploys are switched off in each `vercel.json`,
+   so only CI deploys.
+2. Create a token under Account Settings → Tokens.
+3. Copy the Team ID (Team Settings → General) and each Project ID (Project Settings → General).
+
+**GitHub** → Settings → Secrets and variables → Actions → New repository secret:
+
+| Secret                         | Value                         |
+| ------------------------------ | ----------------------------- |
+| `FLY_API_TOKEN`                | the Fly deploy token          |
+| `VERCEL_TOKEN`                 | the Vercel token              |
+| `VERCEL_ORG_ID`                | the Vercel Team ID            |
+| `VERCEL_HOST_PROJECT_ID`       | the `couchwave-host` ID       |
+| `VERCEL_CONTROLLER_PROJECT_ID` | the `couchwave-controller` ID |
+
+If a name is already taken (the Fly app or a `*.vercel.app` domain), update the URLs in
+`fly.toml` (`app` and `CORS_ORIGINS`), `.github/workflows/ci.yml`, and both
+`.env.production` files.
+
 ## Roadmap
 
 - [x] **M0** Monorepo, CI, create/join rooms with a live lobby
