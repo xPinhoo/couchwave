@@ -112,35 +112,64 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 
 ## Deployment
 
-| App        | Where  | URL                                     |
-| ---------- | ------ | --------------------------------------- |
-| API        | Fly.io | https://couchwave-api.fly.dev           |
-| Host       | Vercel | https://couchwave-host.vercel.app       |
-| Controller | Vercel | https://couchwave-controller.vercel.app |
+| App        | Where                                 | URL                                     |
+| ---------- | ------------------------------------- | --------------------------------------- |
+| API        | Coolify on an Oracle Cloud ARM server | the `API_URL` repository variable       |
+| Host       | Vercel                                | https://couchwave-host.vercel.app       |
+| Controller | Vercel                                | https://couchwave-controller.vercel.app |
 
 Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
-2. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile)
-3. **deploy-api**: `flyctl deploy`, then a smoke test against `/health`
-4. **deploy-web**: builds the host and controller on the runner and uploads the output to
-   Vercel. This runs after the API so the web apps never talk to an older API.
+2. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
+   ARM runner, the same architecture as the server
+3. **deploy-api**: asks Coolify to deploy (its API), waits until the deploy finishes, then
+   smoke-tests `/health`. Coolify builds the image on the server and only switches traffic
+   once the container's health check passes.
+4. **deploy-web**: writes `API_URL` into each app's `.env.production.local`, builds the host
+   and controller on the runner and uploads the output to Vercel. This runs after the API so
+   the web apps never talk to an older API.
 
-Pull requests run steps 1 and 2 only. Deploy jobs are skipped (not failed) while their
-credentials are missing.
+Pull requests run steps 1 and 2 only. Deploy jobs are skipped (not failed) while their settings
+are missing.
 
-The API runs on **a single machine** on purpose: rooms live in memory, so two machines would
-each have their own rooms. Running more than one instance needs Redis (M6). The machine stops
-when idle and starts again on the next request. Deploys restart it, which ends any games in
-progress.
+The API runs as **a single container** on purpose: rooms live in memory, so two instances
+would each have their own rooms. Running more than one needs Redis (M7). Deploys restart it,
+which ends any games in progress.
 
 ### One-time setup
 
-**Fly.io**
+**Oracle Cloud server**
 
-1. Install flyctl and sign in: `fly auth login`
-2. Create the app: `fly apps create couchwave-api`
-3. Create a deploy token: `fly tokens create deploy -a couchwave-api`
+1. Create an Always Free **VM.Standard.A1.Flex** (ARM) instance with **Ubuntu 24.04** and your
+   SSH key. 1–2 OCPUs and 6–12 GB of RAM is plenty.
+2. In the instance's VCN → Security List, allow inbound TCP **80**, **443** and **8000**
+   (8000 only until Coolify has its own domain).
+3. Oracle's Ubuntu images also block ports in the server's own firewall. Open them there too:
+
+   ```bash
+   for port in 80 443 8000; do
+     sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport "$port" -j ACCEPT
+   done
+   sudo netfilter-persistent save
+   ```
+
+4. Install Coolify: `curl -fsSL https://cdn.coollabs.io/coolify/install.sh | sudo bash`, then
+   open `http://<server-ip>:8000` and create the admin account straight away.
+
+**Domain**: point an `A` record for the API (e.g. `api.example.com`) at the server's IP.
+
+**Coolify app**
+
+1. New resource → Public/GitHub repository → this repo, branch `main`, build pack
+   **Dockerfile**, base directory `/`, Dockerfile location `/apps/api/Dockerfile`, port `3000`.
+2. Domain: `https://api.example.com` (Coolify gets the Let's Encrypt certificate).
+3. Environment variables:
+   `CORS_ORIGINS=https://couchwave-host.vercel.app,https://couchwave-controller.vercel.app`
+4. Health check: path `/health` (the image also has a Docker `HEALTHCHECK`).
+5. Turn **off** automatic deploys on push: CI triggers deploys after the tests pass.
+6. Settings → enable the API, then Keys & Tokens → create an API token with deploy permission.
+   Copy the app's UUID from its URL in the dashboard.
 
 **Vercel**
 
@@ -151,19 +180,25 @@ progress.
 2. Create a token under Account Settings → Tokens.
 3. Copy the Team ID (Team Settings → General) and each Project ID (Project Settings → General).
 
-**GitHub** → Settings → Secrets and variables → Actions → New repository secret:
+**GitHub** → Settings → Secrets and variables → Actions:
+
+| Variable           | Value                                                |
+| ------------------ | ---------------------------------------------------- |
+| `API_URL`          | the API's public URL, e.g. `https://api.example.com` |
+| `COOLIFY_URL`      | the Coolify dashboard URL                            |
+| `COOLIFY_APP_UUID` | the API app's UUID in Coolify                        |
 
 | Secret                         | Value                         |
 | ------------------------------ | ----------------------------- |
-| `FLY_API_TOKEN`                | the Fly deploy token          |
+| `COOLIFY_TOKEN`                | the Coolify API token         |
 | `VERCEL_TOKEN`                 | the Vercel token              |
 | `VERCEL_ORG_ID`                | the Vercel Team ID            |
 | `VERCEL_HOST_PROJECT_ID`       | the `couchwave-host` ID       |
 | `VERCEL_CONTROLLER_PROJECT_ID` | the `couchwave-controller` ID |
 
-If a name is already taken (the Fly app or a `*.vercel.app` domain), update the URLs in
-`fly.toml` (`app` and `CORS_ORIGINS`), `.github/workflows/ci.yml`, and both
-`.env.production` files.
+The API address lives only in the `API_URL` variable; changing it and re-running the workflow
+moves both web apps to the new API. If a `*.vercel.app` name is taken, update the Vercel URLs
+in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
 
 ## Roadmap
 

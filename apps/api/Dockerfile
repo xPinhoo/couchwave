@@ -33,4 +33,10 @@ COPY --from=builder --chown=node:node /app/apps/api/package.json ./apps/api/
 COPY --from=builder --chown=node:node /app/apps/api/dist ./apps/api/dist
 USER node
 EXPOSE 3000
+# Lets Coolify (or plain Docker) know when the API is really up before routing traffic
+# to it. The slim image has no curl, so use Node's built-in fetch.
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+# Node runs as PID 1 and receives SIGTERM directly; Nest's shutdown hooks close the
+# HTTP server and sockets so redeploys stop cleanly
 CMD ["node", "apps/api/dist/main.js"]

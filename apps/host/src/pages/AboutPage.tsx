@@ -1,6 +1,6 @@
 const STACK = [
   { area: 'Real-time', tech: 'Socket.IO over WebSockets, with reconnection and server-run timers' },
-  { area: 'API', tech: 'NestJS (TypeScript), deployed on Fly.io' },
+  { area: 'API', tech: 'NestJS (TypeScript), self-hosted with Coolify on Oracle Cloud' },
   { area: 'TV screen', tech: 'React + Vite, deployed on Vercel' },
   { area: 'Phone controller', tech: 'React Native (Expo), running in the browser' },
   { area: 'Game logic', tech: 'Pure TypeScript state machines shared across the monorepo' },

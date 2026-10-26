@@ -17,7 +17,11 @@ permissions:
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
-  API_URL: https://couchwave-api.fly.dev
+
+# Deployment settings (Settings → Secrets and variables → Actions):
+#   variables: API_URL (e.g. https://api.example.com), COOLIFY_URL, COOLIFY_APP_UUID
+#   secrets:   COOLIFY_TOKEN, VERCEL_TOKEN, VERCEL_ORG_ID,
+#              VERCEL_HOST_PROJECT_ID, VERCEL_CONTROLLER_PROJECT_ID
 
 jobs:
   verify:
@@ -53,8 +57,9 @@ jobs:
         run: npm run build
 
   docker:
-    name: Build API Docker image
-    runs-on: ubuntu-latest
+    name: Build API Docker image (ARM)
+    # Same architecture as the production server (Oracle Cloud Ampere A1)
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -67,46 +72,81 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Deploys are skipped (not failed) until the credentials are added to the repo secrets
+  # Deploys are skipped (not failed) until their settings exist
   deploy-config:
-    name: Check deploy credentials
+    name: Check deploy settings
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      fly: ${{ steps.check.outputs.fly }}
-      vercel: ${{ steps.check.outputs.vercel }}
+      api: ${{ steps.check.outputs.api }}
+      web: ${{ steps.check.outputs.web }}
     steps:
       - id: check
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          API_URL: ${{ vars.API_URL }}
+          COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+          COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          echo "fly=$([ -n "$FLY_API_TOKEN" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "vercel=$([ -n "$VERCEL_TOKEN" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          [ -n "$FLY_API_TOKEN" ] || echo "::notice::FLY_API_TOKEN is not set, skipping the API deploy"
-          [ -n "$VERCEL_TOKEN" ] || echo "::notice::VERCEL_TOKEN is not set, skipping the web deploys"
+          api=$( [ -n "$API_URL" ] && [ -n "$COOLIFY_URL" ] && [ -n "$COOLIFY_APP_UUID" ] && [ -n "$COOLIFY_TOKEN" ] && echo true || echo false )
+          web=$( [ -n "$API_URL" ] && [ -n "$VERCEL_TOKEN" ] && echo true || echo false )
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          [ "$api" = true ] || echo "::notice::API_URL, COOLIFY_URL, COOLIFY_APP_UUID or COOLIFY_TOKEN is missing, skipping the API deploy"
+          [ "$web" = true ] || echo "::notice::API_URL or VERCEL_TOKEN is missing, skipping the web deploys"
 
   deploy-api:
-    name: Deploy API to Fly.io
+    name: Deploy API (Coolify)
     needs: [verify, docker, deploy-config]
-    if: needs.deploy-config.outputs.fly == 'true'
+    if: needs.deploy-config.outputs.api == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     environment:
       name: production-api
-      url: https://couchwave-api.fly.dev
+      url: ${{ vars.API_URL }}
     concurrency:
       group: deploy-api
       cancel-in-progress: false
+    env:
+      API_URL: ${{ vars.API_URL }}
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: superfly/flyctl-actions/setup-flyctl@v1.4
+      # Coolify builds the image on the server from apps/api/Dockerfile. Its own
+      # "deploy on push" is turned off, so a deploy only happens once the tests passed.
+      - name: Trigger the deploy
+        id: trigger
+        run: |
+          endpoint="$COOLIFY_URL/api/v1/deploy?uuid=$COOLIFY_APP_UUID&force=false"
+          auth="Authorization: Bearer $COOLIFY_TOKEN"
+          code=$(curl -sS -o response.json -w '%{http_code}' -X POST -H "$auth" "$endpoint")
+          # Older Coolify versions only accept GET on this endpoint
+          if [ "$code" = 405 ]; then
+            code=$(curl -sS -o response.json -w '%{http_code}' -H "$auth" "$endpoint")
+          fi
+          cat response.json; echo
+          [ "$code" = 200 ] || { echo "::error::Coolify answered HTTP $code"; exit 1; }
+          deployment=$(jq -r '.deployments[0].deployment_uuid // empty' response.json)
+          [ -n "$deployment" ] || { echo "::error::No deployment_uuid in Coolify's response"; exit 1; }
+          echo "deployment=$deployment" >> "$GITHUB_OUTPUT"
 
-      # --ha=false keeps a single machine: rooms live in memory, so two machines
-      # would each have their own rooms (multi-instance needs Redis, see roadmap M6)
-      - run: flyctl deploy --remote-only --ha=false
+      - name: Wait for the deploy to finish
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          DEPLOYMENT: ${{ steps.trigger.outputs.deployment }}
+        run: |
+          for _ in $(seq 1 120); do
+            status=$(curl -sS --fail -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_URL/api/v1/deployments/$DEPLOYMENT" | jq -r '.status')
+            echo "Coolify deployment status: $status"
+            case "$status" in
+              finished) exit 0 ;;
+              failed|cancelled*) echo "::error::Coolify deployment $status. See its logs in Coolify."; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Timed out waiting for Coolify"; exit 1
 
       - name: Smoke test
         run: curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors "$API_URL/health"
@@ -114,10 +154,10 @@ jobs:
   deploy-web:
     name: Deploy ${{ matrix.app }} to Vercel
     needs: [verify, deploy-config, deploy-api]
-    # Still deploy the web apps when the API deploy was skipped (no Fly token yet)
+    # Still deploy the web apps when the API deploy was skipped (not configured yet)
     if: |
       always() && needs.verify.result == 'success'
-      && needs.deploy-config.outputs.vercel == 'true'
+      && needs.deploy-config.outputs.web == 'true'
       && (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -127,9 +167,11 @@ jobs:
           - app: host
             project_secret: VERCEL_HOST_PROJECT_ID
             url: https://couchwave-host.vercel.app
+            api_env: VITE_API_URL
           - app: controller
             project_secret: VERCEL_CONTROLLER_PROJECT_ID
             url: https://couchwave-controller.vercel.app
+            api_env: EXPO_PUBLIC_API_URL
     environment:
       name: production-${{ matrix.app }}
       url: ${{ matrix.url }}
@@ -147,6 +189,15 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      # The API address lives in one place (the API_URL variable); both apps read it
+      # from .env.production.local, which Vite and Expo load for production builds
+      - name: Point the build at the API
+        env:
+          API_URL: ${{ vars.API_URL }}
+          API_ENV: ${{ matrix.api_env }}
+          APP: ${{ matrix.app }}
+        run: echo "$API_ENV=$API_URL" > "apps/$APP/.env.production.local"
 
       # Build on the runner and upload only the output, so what gets deployed is
       # exactly what this workflow built and tested against
