@@ -51,9 +51,21 @@ packages/
 
 ## Games
 
-**Quick-fire trivia** has 8 questions. The question is shown on the TV, and each phone shows
-four coloured answer buttons. A correct answer scores 500 points, plus up to 500 more for
-speed. The reveal happens as soon as everyone has answered, or when the 15 s timer runs out.
+**Quick-fire trivia**
+
+- **Setup:** the host picks a topic (General, Music, Sports, Cinema, Geography, History),
+  10/15/30 seconds per question and 10/20/30 questions; the TV updates live. Confirming counts
+  as the host's Ready, and everyone else taps a Ready button. The game starts as soon as every
+  connected player is ready. The last settings are remembered for the next round.
+- **Play:** the question is on the TV and each phone shows four coloured answer buttons. The TV
+  ticks off each player's avatar as they answer, and the reveal starts as soon as everyone has
+  answered or the timer runs out. Each player's avatar then appears on the answer they picked.
+- **Scoring:** speed is a gamble. A correct answer scores 500 plus up to 500 for speed; a wrong
+  one costs 100 plus up to 300 more the faster it came in; no answer costs 100. Scores can go
+  negative.
+- **End:** a podium for the top 3 and a list for everyone else. The host can play again with the
+  same settings or go back to the games.
+- **Questions:** 32 hand-written questions per topic, shuffled per game (answers too).
 
 ## Getting started
 
@@ -162,7 +174,10 @@ If a name is already taken (the Fly app or a `*.vercel.app` domain), update the 
 - [x] **M3a** Home, About and Contacts pages; first player is the host (start, kick, end)
 - [x] **M3b** Games library navigated from the host's phone; avatars (presets + selfie);
       lobby reactions; TV reconnection; rooms close when the TV is gone
-- [ ] **M4** Accounts (email/password + Google), profiles, contact form backed by a database
+- [x] **M3c** Trivia v2: settings, ready-up, 6 topics, risk-based scoring, answered marks,
+      avatars on answers, podium, play again
+- [ ] **M4** Accounts (email/password + Google), profiles, contact form backed by a database,
+      AI-generated question packs
 - [ ] **M5** Native app: QR scanner, deep links, haptics, game history, "recently played with"
 - [ ] **M6** More games: bluff, draw & guess
 - [ ] **M7** Redis-backed rooms, load testing, observability

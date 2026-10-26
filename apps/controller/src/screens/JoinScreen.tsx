@@ -101,7 +101,7 @@ export function JoinScreen({ initialRoomCode, joining, error, onJoin }: JoinScre
               key={preset.id}
               accessibilityRole="radio"
               accessibilityLabel={preset.id}
-              accessibilityState={{ checked: selected }}
+              aria-checked={selected}
               onPress={() => setAvatar(option)}
               style={[styles.tile, selected && styles.tileSelected]}
             >

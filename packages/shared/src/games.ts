@@ -8,18 +8,55 @@ export const CHOICE_STYLES = [
   { color: '#30a46c', symbol: '■' },
 ] as const;
 
+export const TRIVIA_TOPICS = [
+  { id: 'general', name: 'General', emoji: '🧠' },
+  { id: 'music', name: 'Music', emoji: '🎵' },
+  { id: 'sports', name: 'Sports', emoji: '⚽' },
+  { id: 'cinema', name: 'Cinema', emoji: '🎬' },
+  { id: 'geography', name: 'Geography', emoji: '🌍' },
+  { id: 'history', name: 'History', emoji: '🏛️' },
+] as const;
+
+export type TriviaTopic = (typeof TRIVIA_TOPICS)[number]['id'];
+
+export const TRIVIA_SECONDS_OPTIONS = [10, 15, 30] as const;
+export const TRIVIA_LENGTH_OPTIONS = [10, 20, 30] as const;
+
+/** What the host picks on the setup screen. */
+export interface TriviaOptions {
+  topic: TriviaTopic;
+  secondsPerQuestion: (typeof TRIVIA_SECONDS_OPTIONS)[number];
+  questionCount: (typeof TRIVIA_LENGTH_OPTIONS)[number];
+}
+
+export const DEFAULT_TRIVIA_OPTIONS: TriviaOptions = {
+  topic: 'general',
+  secondsPerQuestion: 15,
+  questionCount: 10,
+};
+
+export function triviaTopic(id: TriviaTopic) {
+  return TRIVIA_TOPICS.find((topic) => topic.id === id) ?? TRIVIA_TOPICS[0];
+}
+
 export type TriviaPhase = 'question' | 'reveal' | 'finished';
 
 export interface LeaderboardEntry {
   playerId: string;
   score: number;
-  /** Points won on the last question. */
+  /** Points won or lost on the last question (negative for a wrong or missing answer). */
   gained: number;
+}
+
+export interface TriviaPick {
+  playerId: string;
+  choice: number;
 }
 
 /** What the big screen shows. */
 export interface TriviaHostView {
   game: 'trivia';
+  topic: TriviaTopic;
   phase: TriviaPhase;
   /** 1-based. */
   round: number;
@@ -28,13 +65,23 @@ export interface TriviaHostView {
   choices: string[];
   /** Server time (ms) when the current phase ends; null once the game is finished. */
   endsAt: number | null;
-  answeredCount: number;
-  playerCount: number;
+  /** Everyone in the game, in join order. */
+  playerIds: string[];
+  /** Who has answered the current question (not what they picked). */
+  answeredIds: string[];
   /** Only revealed after the question closes. */
   correctChoice: number | null;
-  /** How many players picked each choice, only during the reveal. */
-  choiceCounts: number[] | null;
+  /** Who picked what, only during the reveal. */
+  picks: TriviaPick[] | null;
   leaderboard: LeaderboardEntry[];
+}
+
+export interface TriviaResult {
+  correct: boolean;
+  /** True when the player didn't answer in time. */
+  missed: boolean;
+  /** Points won or lost (negative for a wrong or missing answer). */
+  points: number;
 }
 
 /** What one phone shows. Never includes the correct answer while the question is open. */
@@ -47,7 +94,7 @@ export interface TriviaPlayerView {
   endsAt: number | null;
   myChoice: number | null;
   /** Outcome of the last question, from the reveal onwards. */
-  lastResult: { correct: boolean; points: number } | null;
+  lastResult: TriviaResult | null;
   score: number;
   /** 1-based; players with the same score share a rank. */
   rank: number;

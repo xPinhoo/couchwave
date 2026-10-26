@@ -9,15 +9,24 @@ interface TriviaScreenProps {
   game: PlayerGame;
   /** False while our own connection is down. */
   connected: boolean;
-  /** The host can end the game or return everyone to the lobby. */
+  /** The host can end the game, replay it, or go back to the games library. */
   isLeader: boolean;
   onAnswer: (choice: number) => void;
   onEnd: () => void;
+  onPlayAgain: () => void;
 }
 
 const ordinal = (n: number) => `#${n}`;
+const signed = (points: number) => (points >= 0 ? `+${points}` : `−${Math.abs(points)}`);
 
-export function TriviaScreen({ game, connected, isLeader, onAnswer, onEnd }: TriviaScreenProps) {
+export function TriviaScreen({
+  game,
+  connected,
+  isLeader,
+  onAnswer,
+  onEnd,
+  onPlayAgain,
+}: TriviaScreenProps) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
   const standing = `${view.score} pts · ${ordinal(view.rank)} of ${view.playerCount}`;
@@ -39,14 +48,19 @@ export function TriviaScreen({ game, connected, isLeader, onAnswer, onEnd }: Tri
         </Text>
         <Text style={styles.muted}>{view.score} points</Text>
         {isLeader ? (
-          <Pressable
-            accessibilityRole="button"
-            disabled={!connected}
-            onPress={onEnd}
-            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-          >
-            <Text style={styles.primaryText}>Back to the games</Text>
-          </Pressable>
+          <>
+            <Pressable
+              accessibilityRole="button"
+              disabled={!connected}
+              onPress={onPlayAgain}
+              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+            >
+              <Text style={styles.primaryText}>Play again</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={!connected} onPress={onEnd}>
+              <Text style={styles.secondaryText}>Back to the games</Text>
+            </Pressable>
+          </>
         ) : (
           <Text style={styles.muted}>Waiting for the host to pick the next game…</Text>
         )}
@@ -56,13 +70,15 @@ export function TriviaScreen({ game, connected, isLeader, onAnswer, onEnd }: Tri
 
   if (view.phase === 'reveal') {
     const result = view.lastResult;
-    const missed = view.myChoice === null;
     return (
       <View style={[styles.centered, result?.correct ? styles.correctBg : styles.wrongBg]}>
         <Text style={styles.big}>
-          {result?.correct ? '✓ Correct!' : missed ? "⏱ Time's up" : '✗ Wrong'}
+          {result?.correct ? '✓ Correct!' : result?.missed ? "⏱ Time's up" : '✗ Wrong'}
         </Text>
-        {result?.correct && <Text style={styles.points}>+{result.points}</Text>}
+        {result && <Text style={styles.points}>{signed(result.points)}</Text>}
+        {result && !result.correct && !result.missed && result.points <= -300 && (
+          <Text style={styles.muted}>Fast and wrong costs more!</Text>
+        )}
         <Text style={styles.muted}>{standing}</Text>
       </View>
     );
@@ -247,6 +263,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
+  },
+  secondaryText: {
+    color: colors.muted,
+    fontWeight: '600',
+    padding: 8,
   },
   correctBg: {
     backgroundColor: '#1d5a3f',

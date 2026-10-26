@@ -1,4 +1,5 @@
-import { GENERAL_KNOWLEDGE, pickQuestions, trivia, type TriviaState } from '@couchwave/engine';
+import { QUESTION_BANKS, pickQuestions, trivia, type TriviaState } from '@couchwave/engine';
+import type { TriviaOptions } from '@couchwave/shared';
 import { Inject, Injectable } from '@nestjs/common';
 import { TRIVIA_CONFIG, type TriviaConfig } from './rooms.constants.js';
 
@@ -15,9 +16,19 @@ export class GamesService {
 
   constructor(@Inject(TRIVIA_CONFIG) private readonly config: TriviaConfig) {}
 
-  start(roomCode: string, playerIds: string[], now: number): TriviaState {
-    const questions = pickQuestions(GENERAL_KNOWLEDGE, this.config.rounds, this.random);
-    const state = trivia.init(playerIds, { ...this.config, questions }, now);
+  start(roomCode: string, playerIds: string[], options: TriviaOptions, now: number): TriviaState {
+    const count = Math.min(options.questionCount, this.config.maxQuestions);
+    const questions = pickQuestions(QUESTION_BANKS[options.topic], count, this.random);
+    const state = trivia.init(
+      playerIds,
+      {
+        topic: options.topic,
+        questions,
+        questionMs: options.secondsPerQuestion * this.config.msPerSecond,
+        revealMs: this.config.revealMs,
+      },
+      now,
+    );
     this.games.set(roomCode, state);
     return state;
   }

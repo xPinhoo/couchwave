@@ -1,13 +1,16 @@
 import {
   AVATAR_PRESETS,
+  DEFAULT_TRIVIA_OPTIONS,
   GAMES,
   MAX_PLAYERS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   type Avatar,
   type ErrorCode,
+  type GameSetup,
   type LobbyState,
   type RoomStatus,
+  type TriviaOptions,
 } from '@couchwave/shared';
 
 export interface Player {
@@ -28,6 +31,8 @@ export interface Room {
   screenConnected: boolean;
   /** Index into `GAMES` of the game highlighted in the library. */
   selectedGame: number;
+  /** Settings and ready-up of the chosen game; kept after a game so the next one reuses them. */
+  setup: GameSetup | null;
   createdAt: number;
 }
 
@@ -52,6 +57,7 @@ export function createRoom(code: string, now: number): Room {
     leaderId: null,
     screenConnected: true,
     selectedGame: 0,
+    setup: null,
     createdAt: now,
   };
 }
@@ -101,7 +107,11 @@ export function addPlayer(
 export function removePlayer(room: Room, playerId: string): Room {
   const players = room.players.filter((p) => p.id !== playerId);
   const leaderId = room.leaderId === playerId ? (players[0]?.id ?? null) : room.leaderId;
-  return { ...room, players, leaderId };
+  const setup = room.setup && {
+    ...room.setup,
+    readyIds: room.setup.readyIds.filter((id) => id !== playerId),
+  };
+  return { ...room, players, leaderId, setup };
 }
 
 export function isLeader(room: Room, playerId: string | undefined): boolean {
@@ -130,6 +140,62 @@ export function moveGameSelection(room: Room, delta: number): Room {
   return { ...room, selectedGame: (((room.selectedGame + delta) % count) + count) % count };
 }
 
+/** Opens the setup screen, starting from the settings of the last game (if any). Nobody is ready yet. */
+export function openSetup(room: Room): Room {
+  return {
+    ...room,
+    status: 'setup',
+    setup: {
+      gameId: 'trivia',
+      options: room.setup?.options ?? DEFAULT_TRIVIA_OPTIONS,
+      readyIds: [],
+    },
+  };
+}
+
+/** Changing the settings un-readies the leader: they confirm again when they're done. */
+export function setSetupOptions(room: Room, options: TriviaOptions): Room {
+  if (!room.setup) return room;
+  return {
+    ...room,
+    setup: {
+      ...room.setup,
+      options,
+      readyIds: room.setup.readyIds.filter((id) => id !== room.leaderId),
+    },
+  };
+}
+
+export function setReady(room: Room, playerId: string, ready: boolean): Room {
+  if (!room.setup || !room.players.some((p) => p.id === playerId)) return room;
+  const others = room.setup.readyIds.filter((id) => id !== playerId);
+  return {
+    ...room,
+    // Keep join order, so the ready list reads naturally
+    setup: {
+      ...room.setup,
+      readyIds: room.players
+        .map((p) => p.id)
+        .filter((id) => others.includes(id) || (ready && id === playerId)),
+    },
+  };
+}
+
+/**
+ * Whether the game can start: every connected player is ready (and there is at least one).
+ * Disconnected players don't hold the room hostage; they get the next game.
+ */
+export function everyoneReady(room: Room): boolean {
+  if (room.status !== 'setup' || !room.setup) return false;
+  const connected = room.players.filter((p) => p.connected);
+  return connected.length > 0 && connected.every((p) => room.setup!.readyIds.includes(p.id));
+}
+
+/** The players who take part when the game starts: everyone connected right now. */
+export function startingPlayerIds(room: Room): string[] {
+  return room.players.filter((p) => p.connected).map((p) => p.id);
+}
+
 export function toLobbyState(room: Room): LobbyState {
   return {
     roomCode: room.code,
@@ -144,5 +210,6 @@ export function toLobbyState(room: Room): LobbyState {
     maxPlayers: MAX_PLAYERS,
     screenConnected: room.screenConnected,
     selectedGame: room.selectedGame,
+    setup: room.setup,
   };
 }

@@ -1,4 +1,4 @@
-import type { GameUpdate, TriviaHostView, TriviaPlayerView } from './games.js';
+import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from './games.js';
 import type { Avatar, Reaction } from './lobby.js';
 import type {
   AnswerPayload,
@@ -6,6 +6,7 @@ import type {
   KickPlayerPayload,
   LibraryMovePayload,
   ReactPayload,
+  ReadyPayload,
   RejoinRoomPayload,
   ResumeScreenPayload,
 } from './schemas.js';
@@ -36,8 +37,18 @@ export interface PublicPlayer {
   connected: boolean;
 }
 
-/** lobby: waiting for players · library: the host is picking a game · playing: in a game */
-export type RoomStatus = 'lobby' | 'library' | 'playing';
+/**
+ * lobby: waiting for players · library: the host is picking a game ·
+ * setup: settings and ready-up for the chosen game · playing: in a game
+ */
+export type RoomStatus = 'lobby' | 'library' | 'setup' | 'playing';
+
+/** The pre-game screen: the host's settings and who has pressed Ready. */
+export interface GameSetup {
+  gameId: 'trivia';
+  options: TriviaOptions;
+  readyIds: string[];
+}
 
 export interface LobbyState {
   roomCode: string;
@@ -50,6 +61,8 @@ export interface LobbyState {
   screenConnected: boolean;
   /** Index into `GAMES` of the highlighted game in the library. */
   selectedGame: number;
+  /** Set while status is 'setup' or 'playing'; the last settings are kept for the next round. */
+  setup: GameSetup | null;
 }
 
 /** The TV screen was gone for too long, so the room shut down. */
@@ -90,10 +103,19 @@ export interface ClientToServerEvents {
   'library:open': (ack: (res: Result<null>) => void) => void;
   /** Leader only: move the highlight left or right. */
   'library:move': (payload: LibraryMovePayload, ack: (res: Result<null>) => void) => void;
-  /** Leader only: start the highlighted game. */
+  /** Leader only: open the setup screen of the highlighted game. */
   'library:select': (ack: (res: Result<null>) => void) => void;
   /** Leader only: games library → lobby (e.g. to wait for more players). */
   'library:close': (ack: (res: Result<null>) => void) => void;
+  /** Leader only, during setup: change the settings (this un-readies the leader). */
+  'setup:options': (payload: TriviaOptions, ack: (res: Result<null>) => void) => void;
+  /**
+   * Any player, during setup. For the leader, ready means "settings confirmed". The game
+   * starts as soon as every connected player is ready.
+   */
+  'setup:ready': (payload: ReadyPayload, ack: (res: Result<null>) => void) => void;
+  /** Leader only: setup → games library. */
+  'setup:cancel': (ack: (res: Result<null>) => void) => void;
   /** Player only. Answers after the first one, or after the deadline, are ignored. */
   'game:answer': (payload: AnswerPayload, ack: (res: Result<null>) => void) => void;
   /** Leader only: stop the game and go back to the games library. */

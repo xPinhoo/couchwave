@@ -7,6 +7,7 @@ import type {
   LobbyState,
   Reaction,
   ServerToClientEvents,
+  TriviaOptions,
   TriviaPlayerView,
 } from '@couchwave/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -75,7 +76,11 @@ export function useController() {
     // Runs on the first connection and after every automatic reconnection.
     socket.on('connect', async () => {
       const session = loadSession();
-      if (!session) return;
+      if (!session) {
+        // Nothing to rejoin (the session was cleared meanwhile): don't stay on "Reconnecting…"
+        setState((prev) => (prev.status === 'rejoining' ? { status: 'idle' } : prev));
+        return;
+      }
 
       const res = await socket.emitWithAck('room:rejoin', session);
       if (res.ok) {
@@ -181,12 +186,27 @@ export function useController() {
       moveLibrary: (delta: -1 | 1) =>
         leaderAction((socket) => socket.emitWithAck('library:move', { delta })),
       selectGame: () => leaderAction((socket) => socket.emitWithAck('library:select')),
+      setOptions: (options: TriviaOptions) =>
+        leaderAction((socket) => socket.emitWithAck('setup:options', options)),
+      cancelSetup: () => leaderAction((socket) => socket.emitWithAck('setup:cancel')),
       endGame: () => leaderAction((socket) => socket.emitWithAck('game:end')),
+      /** Back to the setup screen of the same game; the server keeps the last settings. */
+      playAgain: () =>
+        leaderAction(async (socket) => {
+          const ended = await socket.emitWithAck('game:end');
+          return ended.ok ? socket.emitWithAck('library:select') : ended;
+        }),
       kick: (playerId: string) =>
         leaderAction((socket) => socket.emitWithAck('room:kick', { playerId })),
     }),
     [leaderAction],
   );
+
+  /** Any player during setup; for the host, ready means "settings confirmed". */
+  const setReady = useCallback(async (ready: boolean) => {
+    const res = await socketRef.current?.emitWithAck('setup:ready', { ready });
+    setActionError(res && !res.ok ? ERROR_MESSAGES[res.error] : null);
+  }, []);
 
   /** Fire and forget: a reaction that's rate-limited away isn't worth an error message. */
   const react = useCallback((emoji: Reaction) => {
@@ -199,5 +219,5 @@ export function useController() {
     setState({ status: 'idle' });
   }, []);
 
-  return { state, game, actionError, join, answer, react, leader, reset };
+  return { state, game, actionError, join, answer, react, setReady, leader, reset };
 }

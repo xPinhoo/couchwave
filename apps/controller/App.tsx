@@ -6,12 +6,14 @@ import { StatusBanner } from './src/components/StatusBanner';
 import { JoinScreen } from './src/screens/JoinScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
+import { SetupScreen } from './src/screens/SetupScreen';
 import { TriviaScreen } from './src/screens/TriviaScreen';
 import { colors } from './src/theme';
 import { useController } from './src/useController';
 
 export default function App() {
-  const { state, game, actionError, join, answer, react, leader, reset } = useController();
+  const { state, game, actionError, join, answer, react, setReady, leader, reset } =
+    useController();
 
   return (
     <SafeAreaProvider>
@@ -29,8 +31,25 @@ export default function App() {
               isLeader={state.lobby.leaderId === state.playerId}
               onAnswer={answer}
               onEnd={() => void leader.endGame()}
+              onPlayAgain={() => void leader.playAgain()}
             />
           </>
+        ) : state.status === 'lobby' && state.lobby.status === 'playing' ? (
+          // Joined or came back after the game started: they play the next one
+          <View style={styles.centered}>
+            <Text style={styles.message}>A game is in progress.</Text>
+            <Text style={styles.hint}>Watch the TV — you'll be in the next one!</Text>
+          </View>
+        ) : state.status === 'lobby' && state.lobby.status === 'setup' ? (
+          <SetupScreen
+            playerId={state.playerId}
+            lobby={state.lobby}
+            connected={state.connected}
+            error={actionError}
+            onOptions={(options) => void leader.setOptions(options)}
+            onReady={(ready) => void setReady(ready)}
+            onCancel={() => void leader.cancelSetup()}
+          />
         ) : state.status === 'lobby' && state.lobby.status === 'library' ? (
           <LibraryScreen
             playerId={state.playerId}
@@ -94,6 +113,10 @@ const styles = StyleSheet.create({
   message: {
     color: colors.text,
     fontSize: 20,
+  },
+  hint: {
+    color: colors.muted,
+    textAlign: 'center',
   },
   link: {
     color: colors.accent,

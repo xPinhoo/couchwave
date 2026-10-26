@@ -17,6 +17,7 @@ type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
 const GRACE_MS = 300;
 const SCREEN_GRACE = 400;
 const QUESTION_MS = 400;
+const TEN_SECONDS = { topic: 'general', secondsPerQuestion: 10, questionCount: 10 } as const;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('Rooms (e2e)', () => {
@@ -31,7 +32,8 @@ describe('Rooms (e2e)', () => {
       .overrideProvider(SCREEN_GRACE_MS)
       .useValue(SCREEN_GRACE)
       .overrideProvider(TRIVIA_CONFIG)
-      .useValue({ rounds: 2, questionMs: QUESTION_MS, revealMs: 150 })
+      // A "second" lasts 40ms, so a 10s question takes 400ms; games are capped at 2 questions
+      .useValue({ revealMs: 150, msPerSecond: 40, maxQuestions: 2 })
       .compile();
     app = moduleRef.createNestApplication({ logger: false });
     await app.listen(0, '127.0.0.1');
@@ -68,10 +70,19 @@ describe('Rooms (e2e)', () => {
     return { client, ...res.data };
   }
 
-  /** The leader opens the games library and starts trivia (the first game). */
-  async function startTrivia(leader: Client) {
-    expect(await leader.emitWithAck('library:open')).toEqual({ ok: true, data: null });
-    expect(await leader.emitWithAck('library:select')).toEqual({ ok: true, data: null });
+  /**
+   * The leader opens the library, picks trivia, sets 10s questions and everyone readies up.
+   * `others` are the other connected players, who must be ready too for the game to start.
+   */
+  async function startTrivia(leader: Client, others: Client[] = []) {
+    const ok = { ok: true, data: null };
+    expect(await leader.emitWithAck('library:open')).toEqual(ok);
+    expect(await leader.emitWithAck('library:select')).toEqual(ok);
+    expect(await leader.emitWithAck('setup:options', TEN_SECONDS)).toEqual(ok);
+    for (const player of others) {
+      expect(await player.emitWithAck('setup:ready', { ready: true })).toEqual(ok);
+    }
+    expect(await leader.emitWithAck('setup:ready', { ready: true })).toEqual(ok);
   }
 
   const next = <E extends keyof ServerToClientEvents>(client: Client, event: E) =>
@@ -436,7 +447,7 @@ describe('Rooms (e2e)', () => {
         error: 'PLAYER_NOT_FOUND',
       });
 
-      await startTrivia(ana.client);
+      await startTrivia(ana.client, [rui.client]);
       expect(await ana.client.emitWithAck('room:kick', { playerId: rui.playerId })).toEqual({
         ok: false,
         error: 'GAME_IN_PROGRESS',
@@ -494,9 +505,102 @@ describe('Rooms (e2e)', () => {
       const hostQ1 = hostSees(host, (u) => u.view.phase === 'question');
       const anaQ1 = playerSees(ana.client, (u) => u.view.phase === 'question');
       // Ana joined first, so she is the leader
-      await startTrivia(ana.client);
+      await startTrivia(ana.client, [rui.client]);
       return { host, roomCode, ana, rui, hostQ1: await hostQ1, anaQ1: await anaQ1 };
     }
+
+    describe('setup', () => {
+      const ok = { ok: true, data: null };
+      const music = { topic: 'music', secondsPerQuestion: 30, questionCount: 20 } as const;
+
+      async function inSetup() {
+        const { host, roomCode } = await createRoom();
+        const ana = await joinAs(roomCode, 'Ana');
+        const rui = await joinAs(roomCode, 'Rui');
+        await ana.client.emitWithAck('library:open');
+        const opened = next(host, 'lobby:update');
+        await ana.client.emitWithAck('library:select');
+        return { host, roomCode, ana, rui, lobby: await opened };
+      }
+
+      it('opens with the default settings, nobody ready, and only the leader can change them', async () => {
+        const { ana, rui, host, lobby } = await inSetup();
+        expect(lobby).toMatchObject({
+          status: 'setup',
+          setup: {
+            gameId: 'trivia',
+            options: { topic: 'general', secondsPerQuestion: 15, questionCount: 10 },
+            readyIds: [],
+          },
+        });
+
+        expect(await rui.client.emitWithAck('setup:options', music)).toEqual({
+          ok: false,
+          error: 'NOT_LEADER',
+        });
+        expect(
+          await ana.client.emitWithAck('setup:options', {
+            ...music,
+            secondsPerQuestion: 12,
+          } as never),
+        ).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
+
+        const changed = next(host, 'lobby:update');
+        expect(await ana.client.emitWithAck('setup:options', music)).toEqual(ok);
+        expect((await changed).setup?.options).toEqual(music);
+      });
+
+      it('starts only once everyone is ready, using the chosen settings', async () => {
+        const { host, ana, rui } = await inSetup();
+        await ana.client.emitWithAck('setup:options', music);
+        await ana.client.emitWithAck('setup:ready', { ready: true });
+
+        let started = false;
+        host.once('game:host', () => (started = true));
+        await sleep(100);
+        expect(started).toBe(false); // still waiting for Rui
+
+        const firstQuestion = next(host, 'game:host');
+        expect(await rui.client.emitWithAck('setup:ready', { ready: true })).toEqual(ok);
+        expect((await firstQuestion).view).toMatchObject({
+          topic: 'music',
+          phase: 'question',
+          round: 1,
+          totalRounds: 2, // capped by the test config
+        });
+      });
+
+      it('un-readies the leader when they change the settings', async () => {
+        const { host, ana } = await inSetup();
+        await ana.client.emitWithAck('setup:ready', { ready: true });
+
+        const changed = next(host, 'lobby:update');
+        await ana.client.emitWithAck('setup:options', music);
+        expect((await changed).setup?.readyIds).toEqual([]);
+      });
+
+      it('does not wait for a player who disconnected', async () => {
+        const { host, ana, rui } = await inSetup();
+        await ana.client.emitWithAck('setup:ready', { ready: true });
+
+        const firstQuestion = next(host, 'game:host');
+        rui.client.disconnect();
+        expect((await firstQuestion).view.playerIds).toEqual([ana.playerId]);
+      });
+
+      it('goes back to the library on cancel, and remembers the settings next time', async () => {
+        const { host, ana } = await inSetup();
+        await ana.client.emitWithAck('setup:options', music);
+
+        const cancelled = next(host, 'lobby:update');
+        expect(await ana.client.emitWithAck('setup:cancel')).toEqual(ok);
+        expect((await cancelled).status).toBe('library');
+
+        const reopened = next(host, 'lobby:update');
+        await ana.client.emitWithAck('library:select');
+        expect((await reopened).setup?.options).toEqual(music);
+      });
+    });
 
     it('only the leader picks the game: not the TV screen, not other players', async () => {
       const { host, roomCode } = await createRoom();
@@ -518,7 +622,7 @@ describe('Rooms (e2e)', () => {
       expect(hostQ1.view).toMatchObject({
         round: 1,
         totalRounds: 2,
-        playerCount: 2,
+        playerIds: expect.any(Array),
         correctChoice: null,
       });
       expect(hostQ1.view.prompt).not.toBe('');
@@ -531,7 +635,7 @@ describe('Rooms (e2e)', () => {
     it('reveals early once everyone answered, then plays to the end', async () => {
       const { host, ana, rui, hostQ1 } = await startedGame();
 
-      const oneAnswered = hostSees(host, (u) => u.view.answeredCount === 1);
+      const oneAnswered = hostSees(host, (u) => u.view.answeredIds.length === 1);
       expect(await ana.client.emitWithAck('game:answer', { choice: 0 })).toEqual({
         ok: true,
         data: null,
@@ -544,11 +648,12 @@ describe('Rooms (e2e)', () => {
 
       const { view } = await reveal;
       expect(view.correctChoice).toBeTypeOf('number');
-      expect(view.choiceCounts?.reduce((a, b) => a + b, 0)).toBe(2);
+      expect(view.picks).toHaveLength(2);
       // Revealed well before the 400ms question timer would have run out
       expect(Date.now() - hostQ1.serverTime).toBeLessThan(QUESTION_MS);
       expect((await ruiResult).view.lastResult).toEqual({
         correct: view.correctChoice === 1,
+        missed: false,
         points: expect.any(Number),
       });
 

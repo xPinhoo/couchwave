@@ -4,14 +4,17 @@ import {
   createRoom,
   generateRoomCode,
   moveGameSelection,
+  openSetup,
   removePlayer,
   setPlayerConnected,
   setRoomStatus,
+  setReady,
   setScreenConnected,
+  setSetupOptions,
   type Player,
   type Room,
 } from '@couchwave/engine';
-import type { Avatar, ErrorCode, RoomStatus } from '@couchwave/shared';
+import type { Avatar, ErrorCode, RoomStatus, TriviaOptions } from '@couchwave/shared';
 import { Injectable } from '@nestjs/common';
 
 interface PlayerSession {
@@ -88,6 +91,18 @@ export class RoomsService {
 
   moveGameSelection(code: string, delta: number): Room | undefined {
     return this.update(code, (room) => moveGameSelection(room, delta));
+  }
+
+  openSetup(code: string): Room | undefined {
+    return this.update(code, openSetup);
+  }
+
+  setSetupOptions(code: string, options: TriviaOptions): Room | undefined {
+    return this.update(code, (room) => setSetupOptions(room, options));
+  }
+
+  setReady(code: string, playerId: string, ready: boolean): Room | undefined {
+    return this.update(code, (room) => setReady(room, playerId, ready));
   }
 
   /** Hands the room behind `token` to a new TV connection (after a refresh, say). */

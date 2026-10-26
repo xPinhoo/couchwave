@@ -3,6 +3,7 @@ import { Library } from '../components/Library';
 import { Lobby } from '../components/Lobby';
 import { Reactions } from '../components/Reactions';
 import { TriviaHost } from '../components/TriviaHost';
+import { TriviaSetup } from '../components/TriviaSetup';
 import { CONTROLLER_URL } from '../config';
 import { useHostRoom } from '../useHostRoom';
 
@@ -35,6 +36,8 @@ export function RoomPage() {
             <TriviaHost game={game} lobby={lobby} />
           ) : lobby.status === 'library' ? (
             <Library lobby={lobby} />
+          ) : lobby.status === 'setup' ? (
+            <TriviaSetup lobby={lobby} />
           ) : (
             <Lobby lobby={lobby} controllerUrl={CONTROLLER_URL} />
           )}

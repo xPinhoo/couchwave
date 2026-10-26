@@ -20,6 +20,7 @@ export function lobbyState(overrides: Partial<LobbyState> = {}): LobbyState {
     leaderId: players[0]?.id ?? null,
     screenConnected: true,
     selectedGame: 0,
+    setup: null,
     ...overrides,
   };
 }

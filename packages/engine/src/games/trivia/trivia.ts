@@ -3,6 +3,8 @@ import type {
   TriviaHostView,
   TriviaPhase,
   TriviaPlayerView,
+  TriviaResult,
+  TriviaTopic,
 } from '@couchwave/shared';
 import type { GameModule } from '../../game.js';
 
@@ -14,6 +16,7 @@ export interface TriviaQuestion {
 }
 
 export interface TriviaSettings {
+  topic: TriviaTopic;
   questions: TriviaQuestion[];
   questionMs: number;
   revealMs: number;
@@ -39,19 +42,29 @@ export interface TriviaState {
   /** Answers to the current question. */
   answers: Record<string, Answer>;
   scores: Record<string, number>;
-  /** Points each player won on the last revealed question. */
-  gained: Record<string, number>;
+  /** How each player did on the last revealed question. */
+  results: Record<string, TriviaResult>;
 }
 
 export const BASE_POINTS = 500;
 export const SPEED_BONUS = 500;
+export const MIN_PENALTY = 100;
+export const MAX_PENALTY = 400;
 
-/** A correct answer is worth 500 points, plus up to 500 more the faster it came in. */
+/**
+ * Speed is a gamble. A correct answer earns 500 plus up to 500 more the faster it came in;
+ * a wrong one costs 100 plus up to 300 more the faster it came in. So answering wrong at
+ * the buzzer costs the minimum, and answering wrong instantly costs the most.
+ */
 export function scoreAnswer(correct: boolean, answeredAfterMs: number, questionMs: number): number {
-  if (!correct) return 0;
   const fractionLeft = Math.min(1, Math.max(0, 1 - answeredAfterMs / questionMs));
-  return Math.round(BASE_POINTS + SPEED_BONUS * fractionLeft);
+  return correct
+    ? Math.round(BASE_POINTS + SPEED_BONUS * fractionLeft)
+    : -Math.round(MIN_PENALTY + (MAX_PENALTY - MIN_PENALTY) * fractionLeft);
 }
+
+/** Not answering costs the same as a wrong answer at the very last moment. */
+export const NO_ANSWER_POINTS = -MIN_PENALTY;
 
 const currentQuestion = (state: TriviaState): TriviaQuestion => {
   const question = state.settings.questions[state.round];
@@ -73,18 +86,15 @@ function startQuestion(state: TriviaState, round: number, now: number): TriviaSt
 function reveal(state: TriviaState, now: number): TriviaState {
   const question = currentQuestion(state);
   const scores = { ...state.scores };
-  const gained: Record<string, number> = {};
+  const results: Record<string, TriviaResult> = {};
 
   for (const id of state.playerIds) {
     const answer = state.answers[id];
+    const correct = answer?.choice === question.answer;
     const points = answer
-      ? scoreAnswer(
-          answer.choice === question.answer,
-          answer.at - state.phaseStartedAt,
-          state.settings.questionMs,
-        )
-      : 0;
-    gained[id] = points;
+      ? scoreAnswer(correct, answer.at - state.phaseStartedAt, state.settings.questionMs)
+      : NO_ANSWER_POINTS;
+    results[id] = { correct, missed: !answer, points };
     scores[id] = (scores[id] ?? 0) + points;
   }
 
@@ -94,7 +104,7 @@ function reveal(state: TriviaState, now: number): TriviaState {
     phaseStartedAt: now,
     endsAt: now + state.settings.revealMs,
     scores,
-    gained,
+    results,
   };
 }
 
@@ -103,7 +113,7 @@ function leaderboard(state: TriviaState): LeaderboardEntry[] {
     .map((playerId) => ({
       playerId,
       score: state.scores[playerId] ?? 0,
-      gained: state.gained[playerId] ?? 0,
+      gained: state.results[playerId]?.points ?? 0,
     }))
     .sort((a, b) => b.score - a.score);
 }
@@ -136,7 +146,7 @@ export const trivia: GameModule<
       endsAt: null,
       answers: {},
       scores: Object.fromEntries(playerIds.map((id) => [id, 0])),
-      gained: {},
+      results: {},
     };
     return startQuestion(initial, 0, now);
   },
@@ -172,30 +182,29 @@ export const trivia: GameModule<
 
   hostView(state) {
     const question = currentQuestion(state);
-    const revealed = state.phase === 'reveal';
-    const counts = question.choices.map(
-      (_, i) => Object.values(state.answers).filter((a) => a.choice === i).length,
-    );
 
     return {
       game: 'trivia',
+      topic: state.settings.topic,
       phase: state.phase,
       round: state.round + 1,
       totalRounds: state.settings.questions.length,
       prompt: question.prompt,
       choices: question.choices,
       endsAt: state.endsAt,
-      answeredCount: Object.keys(state.answers).length,
-      playerCount: state.playerIds.length,
+      playerIds: state.playerIds,
+      answeredIds: state.playerIds.filter((id) => id in state.answers),
       correctChoice: state.phase === 'question' ? null : question.answer,
-      choiceCounts: revealed ? counts : null,
+      picks:
+        state.phase === 'reveal'
+          ? Object.entries(state.answers).map(([playerId, { choice }]) => ({ playerId, choice }))
+          : null,
       leaderboard: leaderboard(state),
     };
   },
 
   playerView(state, playerId) {
     const question = currentQuestion(state);
-    const gained = state.gained[playerId] ?? 0;
 
     return {
       game: 'trivia',
@@ -205,7 +214,7 @@ export const trivia: GameModule<
       choices: question.choices,
       endsAt: state.endsAt,
       myChoice: state.answers[playerId]?.choice ?? null,
-      lastResult: state.phase === 'question' ? null : { correct: gained > 0, points: gained },
+      lastResult: state.phase === 'question' ? null : (state.results[playerId] ?? null),
       score: state.scores[playerId] ?? 0,
       rank: rankOf(state, playerId),
       playerCount: state.playerIds.length,

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { PLAYER_NAME_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from './constants.js';
-import { TRIVIA_CHOICES } from './games.js';
+import {
+  TRIVIA_CHOICES,
+  TRIVIA_LENGTH_OPTIONS,
+  TRIVIA_SECONDS_OPTIONS,
+  TRIVIA_TOPICS,
+  type TriviaTopic,
+} from './games.js';
 import { AVATAR_PHOTO_MAX_CHARS, AVATAR_PRESETS, REACTIONS } from './lobby.js';
 
 export const roomCodeSchema = z
@@ -82,3 +88,19 @@ export const libraryMoveSchema = z.object({
 });
 
 export type LibraryMovePayload = z.input<typeof libraryMoveSchema>;
+
+const topicIds = TRIVIA_TOPICS.map((topic) => topic.id) as [TriviaTopic, ...TriviaTopic[]];
+const oneOf = <T extends number>(values: readonly T[]) =>
+  z.number().refine((n): n is T => (values as readonly number[]).includes(n), 'Not an option');
+
+export const triviaOptionsSchema = z.object({
+  topic: z.enum(topicIds),
+  secondsPerQuestion: oneOf(TRIVIA_SECONDS_OPTIONS),
+  questionCount: oneOf(TRIVIA_LENGTH_OPTIONS),
+});
+
+export const readySchema = z.object({
+  ready: z.boolean(),
+});
+
+export type ReadyPayload = z.input<typeof readySchema>;

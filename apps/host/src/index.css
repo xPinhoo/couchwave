@@ -634,22 +634,80 @@ a {
   flex: 1;
 }
 
-.choice-count {
-  min-width: 2.5rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  background: #0006;
-  text-align: center;
+/* Avatars of the players who picked this answer, shown during the reveal */
+.pickers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  max-width: 50%;
 }
 
 .trivia-footer {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
   color: var(--muted);
-  font-size: 1.5rem;
-  text-align: center;
+  font-size: 1.25rem;
+}
+
+/* A green tick on an avatar: answered (in game) or ready (in setup) */
+.avatar-badge {
+  position: relative;
+  display: inline-flex;
+}
+
+.check {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 3px solid var(--bg);
+  border-radius: 50%;
+  background: #30a46c;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  animation: pop 250ms ease-out;
+}
+
+.answered-row,
+.ready-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.answered-row li,
+.ready-list li {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.55;
+  transition: opacity 200ms;
+}
+
+.answered-row li.answered,
+.ready-list li.ready {
+  opacity: 1;
+}
+
+.ready-list li.away {
+  opacity: 0.25;
 }
 
 .leaderboard,
-.podium {
+.rest {
   display: grid;
   gap: 0.5rem;
   width: min(100%, 40rem);
@@ -659,14 +717,24 @@ a {
 }
 
 .leaderboard li,
-.podium li {
+.rest li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   padding: 0.75rem 1.25rem;
   border-radius: 0.75rem;
   background: var(--surface);
   font-size: 1.5rem;
+}
+
+.rest .place {
+  width: 2rem;
+  color: var(--muted);
+}
+
+.rest .player-tag {
+  flex: 1;
 }
 
 .score {
@@ -679,6 +747,11 @@ a {
   font-weight: 600;
 }
 
+.lost {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .final {
   display: grid;
   place-content: center;
@@ -688,18 +761,113 @@ a {
   padding: 2rem;
 }
 
-.podium .place {
-  width: 2rem;
+/* Podium: 2nd, 1st, 3rd standing on blocks of different heights */
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.podium .step {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  width: 11rem;
+  animation: rise 600ms ease-out both;
+}
+
+.podium-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.podium .block {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  border-radius: 1rem 1rem 0 0;
+  background: var(--surface);
+  font-size: 2.5rem;
+  font-weight: 800;
+}
+
+.podium .place-1 .block {
+  height: 10rem;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+}
+
+.podium .place-2 .block {
+  height: 7rem;
+}
+
+.podium .place-3 .block {
+  height: 5rem;
+}
+
+.podium .place-1 {
+  animation-delay: 300ms;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(2rem);
+    opacity: 0;
+  }
+}
+
+/* Setup: settings and ready-up */
+
+.setup {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 3rem;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.setup-header h1 {
+  margin: 0.5rem 0 0;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+}
+
+.setup-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0;
+}
+
+.setup-options div {
+  min-width: 12rem;
+  padding: 1.25rem 1.5rem;
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+.setup-options dt {
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.8rem;
 }
 
-.podium li span:nth-child(2) {
-  flex: 1;
-}
-
-.podium .winner {
-  border: 2px solid var(--accent-2);
+.setup-options dd {
+  margin: 0.5rem 0 0;
   font-size: 2rem;
+  font-weight: 800;
+}
+
+.setup-status {
+  margin-top: 1.5rem;
+  font-size: 1.25rem;
 }
 
 @media (max-width: 800px) {

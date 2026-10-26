@@ -1,13 +1,25 @@
-import { GAMES, MAX_PLAYERS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@couchwave/shared';
+import {
+  DEFAULT_TRIVIA_OPTIONS,
+  GAMES,
+  MAX_PLAYERS,
+  ROOM_CODE_ALPHABET,
+  ROOM_CODE_LENGTH,
+  type TriviaOptions,
+} from '@couchwave/shared';
 import { describe, expect, it } from 'vitest';
 import {
   addPlayer,
   createRoom,
+  everyoneReady,
   generateRoomCode,
   isLeader,
   moveGameSelection,
+  openSetup,
   removePlayer,
   setPlayerConnected,
+  setReady,
+  setSetupOptions,
+  startingPlayerIds,
   toLobbyState,
   type Room,
 } from './room.js';
@@ -123,6 +135,62 @@ describe('leader', () => {
   });
 });
 
+describe('game setup', () => {
+  const music: TriviaOptions = { topic: 'music', secondsPerQuestion: 30, questionCount: 20 };
+  const setupRoom = () => openSetup(roomWith('ana', 'rui'));
+  const readyIds = (room: Room) => room.setup?.readyIds;
+
+  it('opens with the default settings and nobody ready', () => {
+    expect(setupRoom()).toMatchObject({
+      status: 'setup',
+      setup: { gameId: 'trivia', options: DEFAULT_TRIVIA_OPTIONS, readyIds: [] },
+    });
+  });
+
+  it('remembers the settings of the previous game', () => {
+    const played = { ...setSetupOptions(setupRoom(), music), status: 'library' as const };
+    expect(openSetup(played).setup?.options).toEqual(music);
+  });
+
+  it('keeps the ready list in join order and lets players change their mind', () => {
+    let room = setReady(setupRoom(), 'rui', true);
+    room = setReady(room, 'ana', true);
+    expect(readyIds(room)).toEqual(['ana', 'rui']);
+    expect(readyIds(setReady(room, 'rui', false))).toEqual(['ana']);
+  });
+
+  it('un-readies only the leader when the settings change', () => {
+    let room = setReady(setReady(setupRoom(), 'ana', true), 'rui', true);
+    room = setSetupOptions(room, music);
+    expect(room.setup?.options).toEqual(music);
+    expect(readyIds(room)).toEqual(['rui']);
+  });
+
+  it('is ready to start once every connected player is ready', () => {
+    let room = setReady(setupRoom(), 'ana', true);
+    expect(everyoneReady(room)).toBe(false);
+    room = setReady(room, 'rui', true);
+    expect(everyoneReady(room)).toBe(true);
+  });
+
+  it('does not wait for disconnected players, and leaves them out of the game', () => {
+    let room = setPlayerConnected(setupRoom(), 'rui', false);
+    room = setReady(room, 'ana', true);
+    expect(everyoneReady(room)).toBe(true);
+    expect(startingPlayerIds(room)).toEqual(['ana']);
+  });
+
+  it('forgets the ready state of players who leave', () => {
+    const room = removePlayer(setReady(setupRoom(), 'rui', true), 'rui');
+    expect(readyIds(room)).toEqual([]);
+  });
+
+  it('ignores ready from players who are not in the room', () => {
+    const room = setupRoom();
+    expect(setReady(room, 'stranger', true)).toBe(room);
+  });
+});
+
 describe('moveGameSelection', () => {
   it('moves the highlight and wraps around at both ends', () => {
     const room = createRoom('ABCD', 0);
@@ -156,6 +224,7 @@ describe('toLobbyState', () => {
       maxPlayers: MAX_PLAYERS,
       screenConnected: true,
       selectedGame: 0,
+      setup: null,
     });
   });
 });

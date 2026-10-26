@@ -1,13 +1,6 @@
-import type { TriviaQuestion } from './trivia.js';
+import type { QuestionSource } from './types.js';
 
-export interface QuestionSource {
-  prompt: string;
-  answer: string;
-  wrong: [string, string, string];
-}
-
-/** Starter pack of general-knowledge questions. Choices are shuffled per game. */
-export const GENERAL_KNOWLEDGE: QuestionSource[] = [
+export const GENERAL: QuestionSource[] = [
   {
     prompt: 'What is the capital of Australia?',
     answer: 'Canberra',
@@ -157,26 +150,3 @@ export const GENERAL_KNOWLEDGE: QuestionSource[] = [
     wrong: ['Purple', 'Orange', 'Brown'],
   },
 ];
-
-function shuffle<T>(items: readonly T[], random: () => number): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [result[i], result[j]] = [result[j]!, result[i]!];
-  }
-  return result;
-}
-
-/** Picks `count` random questions and shuffles each one's choices. */
-export function pickQuestions(
-  source: readonly QuestionSource[],
-  count: number,
-  random: () => number = Math.random,
-): TriviaQuestion[] {
-  return shuffle(source, random)
-    .slice(0, count)
-    .map(({ prompt, answer, wrong }) => {
-      const choices = shuffle([answer, ...wrong], random);
-      return { prompt, choices, answer: choices.indexOf(answer) };
-    });
-}

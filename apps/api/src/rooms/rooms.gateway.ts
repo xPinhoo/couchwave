@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { isLeader, toLobbyState, trivia, type Room } from '@couchwave/engine';
+import {
+  everyoneReady,
+  isLeader,
+  startingPlayerIds,
+  toLobbyState,
+  trivia,
+  type Room,
+} from '@couchwave/engine';
 import {
   GAMES,
   REACTION_COOLDOWN_MS,
@@ -8,8 +15,10 @@ import {
   kickPlayerSchema,
   libraryMoveSchema,
   reactSchema,
+  readySchema,
   rejoinRoomSchema,
   resumeScreenSchema,
+  triviaOptionsSchema,
   type ClientToServerEvents,
   type CreatedRoom,
   type JoinedRoom,
@@ -206,6 +215,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     this.server.to(playerChannel(playerId)).emit('room:kicked');
     this.server.in(playerChannel(playerId)).disconnectSockets(true);
     this.server.to(room.code).emit('lobby:update', toLobbyState(kicked.room));
+    this.maybeStartGame(room.code);
 
     this.logger.log(`Player ${playerId} kicked from ${room.code}`);
     return ok;
@@ -278,18 +288,53 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (!room) return { ok: false, error: 'NOT_LEADER' };
     if (room.status !== 'library') return { ok: false, error: 'WRONG_PHASE' };
     if (!GAMES[room.selectedGame]?.available) return { ok: false, error: 'GAME_UNAVAILABLE' };
-    if (room.players.length < trivia.minPlayers) return { ok: false, error: 'NOT_ENOUGH_PLAYERS' };
 
-    this.broadcastLobby(this.rooms.setStatus(room.code, 'playing'));
-    this.games.start(
-      room.code,
-      room.players.map((p) => p.id),
-      Date.now(),
-    );
-    this.broadcastGame(room.code);
-    this.startGameLoop(room.code);
+    this.broadcastLobby(this.rooms.openSetup(room.code));
+    return ok;
+  }
 
-    this.logger.log(`Trivia started in ${room.code} with ${room.players.length} player(s)`);
+  // ── Game setup: settings and ready-up ──────────────────────────────────────
+
+  @SubscribeMessage('setup:options')
+  handleSetupOptions(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Result<null> {
+    const room = this.leaderRoom(socket);
+    if (!room) return { ok: false, error: 'NOT_LEADER' };
+    if (room.status !== 'setup') return { ok: false, error: 'WRONG_PHASE' };
+
+    const parsed = triviaOptionsSchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+
+    this.broadcastLobby(this.rooms.setSetupOptions(room.code, parsed.data));
+    return ok;
+  }
+
+  @SubscribeMessage('setup:ready')
+  handleSetupReady(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Result<null> {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return { ok: false, error: 'NOT_A_PLAYER' };
+    if (this.rooms.get(roomCode)?.status !== 'setup') return { ok: false, error: 'WRONG_PHASE' };
+
+    const parsed = readySchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+
+    this.broadcastLobby(this.rooms.setReady(roomCode, playerId, parsed.data.ready));
+    this.maybeStartGame(roomCode);
+    return ok;
+  }
+
+  @SubscribeMessage('setup:cancel')
+  handleSetupCancel(@ConnectedSocket() socket: GameSocket): Result<null> {
+    const room = this.leaderRoom(socket);
+    if (!room) return { ok: false, error: 'NOT_LEADER' };
+    if (room.status !== 'setup') return { ok: false, error: 'WRONG_PHASE' };
+
+    this.broadcastLobby(this.rooms.setStatus(room.code, 'library'));
     return ok;
   }
 
@@ -345,9 +390,12 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (!room) return;
 
     this.broadcastLobby(room);
+    // The others may have been waiting only for this player to press Ready
+    this.maybeStartGame(roomCode);
     this.startTimer(this.graceTimers, playerId, this.graceMs, () => {
       this.lastReactionAt.delete(playerId);
       this.broadcastLobby(this.rooms.expire(playerId));
+      this.maybeStartGame(roomCode);
     });
   }
 
@@ -372,6 +420,21 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
 
   private broadcastLobby(room: Room | undefined): void {
     if (room) this.server.to(room.code).emit('lobby:update', toLobbyState(room));
+  }
+
+  /** Starts the game once every connected player in the setup screen is ready. */
+  private maybeStartGame(roomCode: string): void {
+    const room = this.rooms.get(roomCode);
+    if (!room?.setup || !everyoneReady(room)) return;
+
+    const playerIds = startingPlayerIds(room);
+    if (playerIds.length < trivia.minPlayers) return;
+
+    this.broadcastLobby(this.rooms.setStatus(roomCode, 'playing'));
+    this.games.start(roomCode, playerIds, room.setup.options, Date.now());
+    this.broadcastGame(roomCode);
+    this.startGameLoop(roomCode);
+    this.logger.log(`Trivia (${room.setup.options.topic}) started in ${roomCode}`);
   }
 
   private closeRoom(roomCode: string, reason: RoomClosedReason): void {
