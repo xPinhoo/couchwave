@@ -8,13 +8,15 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "e2e"
   ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
+    "test:browser": "npm run test:browser --workspace @couchwave/e2e",
     "typecheck": "turbo run typecheck",
     "lint": "oxlint",
     "format": "prettier --write .",

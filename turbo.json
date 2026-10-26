@@ -3,6 +3,9 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      // .env files are baked into the web builds; .env*.local is git-ignored, so list
+      // them explicitly or a changed API URL would replay a stale cached build
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**"]
     },
     "dev": {

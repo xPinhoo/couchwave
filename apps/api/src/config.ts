@@ -1,3 +1,5 @@
+import { DEFAULT_TRIVIA_CONFIG, type TriviaConfig } from './rooms/rooms.constants.js';
+
 /**
  * Comma-separated list of allowed origins in production (CORS_ORIGINS=https://a.app,https://b.app).
  * When unset, any origin is allowed — convenient for local dev and for phones on the LAN.
@@ -20,4 +22,17 @@ export function reconnectGraceMs(): number {
 /** How long a room waits for its TV screen to come back before closing (SCREEN_GRACE_MS). */
 export function screenGraceMs(): number {
   return positiveIntEnv('SCREEN_GRACE_MS', 120_000);
+}
+
+/**
+ * Trivia timing. Production uses the defaults; the browser tests speed games up with
+ * TRIVIA_MS_PER_SECOND (how long one "second" lasts), TRIVIA_REVEAL_MS and
+ * TRIVIA_MAX_QUESTIONS.
+ */
+export function triviaConfig(): TriviaConfig {
+  return {
+    revealMs: positiveIntEnv('TRIVIA_REVEAL_MS', DEFAULT_TRIVIA_CONFIG.revealMs),
+    msPerSecond: positiveIntEnv('TRIVIA_MS_PER_SECOND', DEFAULT_TRIVIA_CONFIG.msPerSecond),
+    maxQuestions: positiveIntEnv('TRIVIA_MAX_QUESTIONS', DEFAULT_TRIVIA_CONFIG.maxQuestions),
+  };
 }

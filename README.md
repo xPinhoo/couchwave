@@ -88,27 +88,31 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 
 ### Environment variables
 
-| Variable              | App        | Default                              |
-| --------------------- | ---------- | ------------------------------------ |
-| `PORT`                | api        | `3000`                               |
-| `CORS_ORIGINS`        | api        | any origin (comma-separated list)    |
-| `RECONNECT_GRACE_MS`  | api        | `30000`                              |
-| `SCREEN_GRACE_MS`     | api        | `120000`                             |
-| `VITE_API_URL`        | host       | same hostname as the page, port 3000 |
-| `VITE_CONTROLLER_URL` | host       | same hostname as the page, port 8081 |
-| `EXPO_PUBLIC_API_URL` | controller | the dev machine's address, port 3000 |
+| Variable               | App        | Default                              |
+| ---------------------- | ---------- | ------------------------------------ |
+| `PORT`                 | api        | `3000`                               |
+| `CORS_ORIGINS`         | api        | any origin (comma-separated list)    |
+| `RECONNECT_GRACE_MS`   | api        | `30000`                              |
+| `SCREEN_GRACE_MS`      | api        | `120000`                             |
+| `TRIVIA_MS_PER_SECOND` | api        | `1000` (lower it to speed up timers) |
+| `TRIVIA_REVEAL_MS`     | api        | `5000`                               |
+| `TRIVIA_MAX_QUESTIONS` | api        | no limit                             |
+| `VITE_API_URL`         | host       | same hostname as the page, port 3000 |
+| `VITE_CONTROLLER_URL`  | host       | same hostname as the page, port 8081 |
+| `EXPO_PUBLIC_API_URL`  | controller | the dev machine's address, port 3000 |
 
 ## Scripts
 
-| Command             | What it does                                  |
-| ------------------- | --------------------------------------------- |
-| `npm run dev`       | Run every app in watch mode                   |
-| `npm run build`     | Build all packages and apps                   |
-| `npm run test`      | Unit and component tests (Vitest)             |
-| `npm run test:e2e`  | API end-to-end tests with real socket clients |
-| `npm run typecheck` | TypeScript across the monorepo                |
-| `npm run lint`      | oxlint                                        |
-| `npm run format`    | Prettier                                      |
+| Command                | What it does                                                                |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `npm run dev`          | Run every app in watch mode                                                 |
+| `npm run build`        | Build all packages and apps                                                 |
+| `npm run test`         | Unit and component tests (Vitest)                                           |
+| `npm run test:e2e`     | API end-to-end tests with real socket clients                               |
+| `npm run test:browser` | Playwright: a TV and phones playing a real game (run `npm run build` first) |
+| `npm run typecheck`    | TypeScript across the monorepo                                              |
+| `npm run lint`         | oxlint                                                                      |
+| `npm run format`       | Prettier                                                                    |
 
 ## Deployment
 
@@ -121,16 +125,19 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
-2. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
+2. **browser-tests**: Playwright opens a TV and two phones in Chromium against the built apps
+   and plays a full round of trivia. On failure the report and traces are uploaded as an
+   artifact (open a trace with `npx playwright show-trace`).
+3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
-3. **deploy-api**: asks Coolify to deploy (its API), waits until the deploy finishes, then
+4. **deploy-api**: asks Coolify to deploy (its API), waits until the deploy finishes, then
    smoke-tests `/health`. Coolify builds the image on the server and only switches traffic
    once the container's health check passes.
-4. **deploy-web**: writes `API_URL` into each app's `.env.production.local`, builds the host
+5. **deploy-web**: writes `API_URL` into each app's `.env.production.local`, builds the host
    and controller on the runner and uploads the output to Vercel. This runs after the API so
    the web apps never talk to an older API.
 
-Pull requests run steps 1 and 2 only. Deploy jobs are skipped (not failed) while their settings
+Pull requests run steps 1 to 3 only. Deploy jobs are skipped (not failed) while their settings
 are missing.
 
 The API runs as **a single container** on purpose: rooms live in memory, so two instances

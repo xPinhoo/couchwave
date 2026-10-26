@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "expo export --platform web",
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && expo export --platform web",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
