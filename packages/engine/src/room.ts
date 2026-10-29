@@ -1,5 +1,6 @@
 import {
   AVATAR_PRESETS,
+  DEFAULT_DRAW_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
   GAMES,
   MAX_PLAYERS,
@@ -7,10 +8,10 @@ import {
   ROOM_CODE_LENGTH,
   type Avatar,
   type ErrorCode,
+  type GameId,
   type GameSetup,
   type LobbyState,
   type RoomStatus,
-  type TriviaOptions,
 } from '@couchwave/shared';
 
 export interface Player {
@@ -140,21 +141,25 @@ export function moveGameSelection(room: Room, delta: number): Room {
   return { ...room, selectedGame: (((room.selectedGame + delta) % count) + count) % count };
 }
 
-/** Opens the setup screen, starting from the settings of the last game (if any). Nobody is ready yet. */
-export function openSetup(room: Room): Room {
-  return {
-    ...room,
-    status: 'setup',
-    setup: {
-      gameId: 'trivia',
-      options: room.setup?.options ?? DEFAULT_TRIVIA_OPTIONS,
-      readyIds: [],
-    },
-  };
+/**
+ * Opens the setup screen of a game. Playing the same game again starts from the last
+ * settings; otherwise from the defaults. Nobody is ready yet.
+ */
+export function openSetup(room: Room, gameId: GameId): Room {
+  const setup: GameSetup =
+    room.setup?.gameId === gameId
+      ? { ...room.setup, readyIds: [] }
+      : gameId === 'draw'
+        ? { gameId, options: DEFAULT_DRAW_OPTIONS, readyIds: [] }
+        : { gameId, options: DEFAULT_TRIVIA_OPTIONS, readyIds: [] };
+  return { ...room, status: 'setup', setup };
 }
 
-/** Changing the settings un-readies the leader: they confirm again when they're done. */
-export function setSetupOptions(room: Room, options: TriviaOptions): Room {
+/**
+ * Changing the settings un-readies the leader: they confirm again when they're done.
+ * The options must belong to the game being set up (the server validates them per game).
+ */
+export function setSetupOptions(room: Room, options: GameSetup['options']): Room {
   if (!room.setup) return room;
   return {
     ...room,
@@ -162,7 +167,7 @@ export function setSetupOptions(room: Room, options: TriviaOptions): Room {
       ...room.setup,
       options,
       readyIds: room.setup.readyIds.filter((id) => id !== room.leaderId),
-    },
+    } as GameSetup,
   };
 }
 

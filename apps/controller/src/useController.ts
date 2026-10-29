@@ -1,14 +1,16 @@
 import type {
   Avatar,
   ClientToServerEvents,
+  DrawOptions,
   ErrorCode,
   GameUpdate,
   JoinedRoom,
   LobbyState,
+  PlayerView,
   Reaction,
   ServerToClientEvents,
+  Stroke,
   TriviaOptions,
-  TriviaPlayerView,
 } from '@couchwave/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -29,10 +31,18 @@ export type ControllerState =
   /** The host removed us from the room. */
   | { status: 'kicked' };
 
-export interface PlayerGame {
-  update: GameUpdate<TriviaPlayerView>;
+export interface PlayerGame<View extends PlayerView = PlayerView> {
+  update: GameUpdate<View>;
   /** Local time the update arrived, for lining up the countdown with the server clock. */
   receivedAt: number;
+}
+
+/** Narrows a game update to one game, e.g. `isGame(game, 'draw')`. */
+export function isGame<Id extends PlayerView['game']>(
+  game: PlayerGame,
+  id: Id,
+): game is PlayerGame<Extract<PlayerView, { game: Id }>> {
+  return game.update.view.game === id;
 }
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -160,12 +170,24 @@ export function useController() {
   const answer = useCallback((choice: number) => {
     // Show the choice straight away; the server's next update confirms it
     setGame((prev) =>
-      prev
+      prev && isGame(prev, 'trivia')
         ? { ...prev, update: { ...prev.update, view: { ...prev.update.view, myChoice: choice } } }
         : prev,
     );
     void socketRef.current?.emitWithAck('game:answer', { choice });
   }, []);
+
+  /** Draw & Guess. Drawing is fire and forget: strokes stream many times a second. */
+  const drawing = useMemo(
+    () => ({
+      choose: (index: number) => void socketRef.current?.emitWithAck('draw:choose', { index }),
+      guess: (text: string) => void socketRef.current?.emitWithAck('draw:guess', { text }),
+      stroke: (stroke: Stroke) => socketRef.current?.emit('draw:stroke', stroke),
+      undo: () => socketRef.current?.emit('draw:undo'),
+      clear: () => socketRef.current?.emit('draw:clear'),
+    }),
+    [],
+  );
 
   /** Runs a host-only action and surfaces its error, if any. */
   const leaderAction = useCallback(
@@ -186,7 +208,7 @@ export function useController() {
       moveLibrary: (delta: -1 | 1) =>
         leaderAction((socket) => socket.emitWithAck('library:move', { delta })),
       selectGame: () => leaderAction((socket) => socket.emitWithAck('library:select')),
-      setOptions: (options: TriviaOptions) =>
+      setOptions: (options: TriviaOptions | DrawOptions) =>
         leaderAction((socket) => socket.emitWithAck('setup:options', options)),
       cancelSetup: () => leaderAction((socket) => socket.emitWithAck('setup:cancel')),
       endGame: () => leaderAction((socket) => socket.emitWithAck('game:end')),
@@ -219,5 +241,5 @@ export function useController() {
     setState({ status: 'idle' });
   }, []);
 
-  return { state, game, actionError, join, answer, react, setReady, leader, reset };
+  return { state, game, actionError, join, answer, drawing, react, setReady, leader, reset };
 }

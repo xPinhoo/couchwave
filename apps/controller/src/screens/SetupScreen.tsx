@@ -1,8 +1,13 @@
 import {
+  DRAW_ROUNDS_OPTIONS,
+  DRAW_SECONDS_OPTIONS,
   TRIVIA_LENGTH_OPTIONS,
   TRIVIA_SECONDS_OPTIONS,
   TRIVIA_TOPICS,
+  gameInfo,
   triviaTopic,
+  type DrawOptions,
+  type GameSetup,
   type LobbyState,
   type TriviaOptions,
 } from '@couchwave/shared';
@@ -17,7 +22,7 @@ interface SetupScreenProps {
   lobby: LobbyState;
   connected: boolean;
   error: string | null;
-  onOptions: (options: TriviaOptions) => void;
+  onOptions: (options: TriviaOptions | DrawOptions) => void;
   onReady: (ready: boolean) => void;
   onCancel: () => void;
 }
@@ -38,52 +43,28 @@ export function SetupScreen({
   const setup = lobby.setup;
   if (!setup) return null;
 
-  const { options, readyIds } = setup;
+  const { readyIds } = setup;
+  const game = gameInfo(setup.gameId);
   const isLeader = lobby.leaderId === playerId;
   const ready = readyIds.includes(playerId);
   const leader = lobby.players.find((p) => p.id === lobby.leaderId);
   const editing = isLeader && !ready;
-  const set = (change: Partial<TriviaOptions>) => onOptions({ ...options, ...change });
+  const connectedCount = lobby.players.filter((p) => p.connected).length;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <StatusBanner connected={connected} screenConnected={lobby.screenConnected} />
-      <Text style={styles.eyebrow}>Quick-fire trivia</Text>
+      <Text style={styles.eyebrow}>{game.name}</Text>
 
       {editing ? (
         <>
           <Text style={styles.title}>Game settings</Text>
 
-          <Section label="Topic">
-            {TRIVIA_TOPICS.map((topic) => (
-              <Chip
-                key={topic.id}
-                label={`${topic.emoji} ${topic.name}`}
-                selected={options.topic === topic.id}
-                onPress={() => set({ topic: topic.id })}
-              />
-            ))}
-          </Section>
-          <Section label="Time per question">
-            {TRIVIA_SECONDS_OPTIONS.map((seconds) => (
-              <Chip
-                key={seconds}
-                label={`${seconds}s`}
-                selected={options.secondsPerQuestion === seconds}
-                onPress={() => set({ secondsPerQuestion: seconds })}
-              />
-            ))}
-          </Section>
-          <Section label="Questions">
-            {TRIVIA_LENGTH_OPTIONS.map((count) => (
-              <Chip
-                key={count}
-                label={String(count)}
-                selected={options.questionCount === count}
-                onPress={() => set({ questionCount: count })}
-              />
-            ))}
-          </Section>
+          {setup.gameId === 'trivia' ? (
+            <TriviaSettings options={setup.options} onChange={onOptions} />
+          ) : (
+            <DrawSettings options={setup.options} onChange={onOptions} />
+          )}
 
           <BigButton label="Confirm" disabled={!connected} onPress={() => onReady(true)} />
           <Pressable accessibilityRole="button" onPress={onCancel} style={styles.link}>
@@ -92,7 +73,7 @@ export function SetupScreen({
         </>
       ) : (
         <>
-          <Summary options={options} />
+          <Summary setup={setup} />
           {isLeader ? (
             <>
               <Text style={styles.muted}>Settings confirmed. Waiting for everyone else…</Text>
@@ -132,6 +113,12 @@ export function SetupScreen({
         </>
       )}
 
+      {connectedCount < game.minPlayers && (
+        <Text style={styles.warning}>
+          {game.name} needs at least {game.minPlayers} players. Invite someone with room code{' '}
+          {lobby.roomCode}!
+        </Text>
+      )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.readyRow}>
@@ -152,7 +139,99 @@ export function SetupScreen({
   );
 }
 
-function Summary({ options }: { options: TriviaOptions }) {
+function TriviaSettings({
+  options,
+  onChange,
+}: {
+  options: TriviaOptions;
+  onChange: (options: TriviaOptions) => void;
+}) {
+  const set = (change: Partial<TriviaOptions>) => onChange({ ...options, ...change });
+  return (
+    <>
+      <Section label="Topic">
+        {TRIVIA_TOPICS.map((topic) => (
+          <Chip
+            key={topic.id}
+            label={`${topic.emoji} ${topic.name}`}
+            selected={options.topic === topic.id}
+            onPress={() => set({ topic: topic.id })}
+          />
+        ))}
+      </Section>
+      <Section label="Time per question">
+        {TRIVIA_SECONDS_OPTIONS.map((seconds) => (
+          <Chip
+            key={seconds}
+            label={`${seconds}s`}
+            selected={options.secondsPerQuestion === seconds}
+            onPress={() => set({ secondsPerQuestion: seconds })}
+          />
+        ))}
+      </Section>
+      <Section label="Questions">
+        {TRIVIA_LENGTH_OPTIONS.map((count) => (
+          <Chip
+            key={count}
+            label={String(count)}
+            selected={options.questionCount === count}
+            onPress={() => set({ questionCount: count })}
+          />
+        ))}
+      </Section>
+    </>
+  );
+}
+
+function DrawSettings({
+  options,
+  onChange,
+}: {
+  options: DrawOptions;
+  onChange: (options: DrawOptions) => void;
+}) {
+  const set = (change: Partial<DrawOptions>) => onChange({ ...options, ...change });
+  return (
+    <>
+      <Section label="Time to draw">
+        {DRAW_SECONDS_OPTIONS.map((seconds) => (
+          <Chip
+            key={seconds}
+            label={`${seconds}s`}
+            selected={options.secondsToDraw === seconds}
+            onPress={() => set({ secondsToDraw: seconds })}
+          />
+        ))}
+      </Section>
+      <Section label="Rounds (everyone draws once per round)">
+        {DRAW_ROUNDS_OPTIONS.map((rounds) => (
+          <Chip
+            key={rounds}
+            label={String(rounds)}
+            selected={options.rounds === rounds}
+            onPress={() => set({ rounds })}
+          />
+        ))}
+      </Section>
+    </>
+  );
+}
+
+function Summary({ setup }: { setup: GameSetup }) {
+  if (setup.gameId === 'draw') {
+    const { rounds, secondsToDraw } = setup.options;
+    return (
+      <View style={styles.summary}>
+        <Text style={styles.summaryEmoji}>🎨</Text>
+        <Text style={styles.title}>Draw & Guess</Text>
+        <Text style={styles.muted}>
+          {rounds} {rounds === 1 ? 'round' : 'rounds'} · {secondsToDraw}s to draw
+        </Text>
+      </View>
+    );
+  }
+
+  const { options } = setup;
   const topic = triviaTopic(options.topic);
   return (
     <View style={styles.summary}>
@@ -336,6 +415,10 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.danger,
+    textAlign: 'center',
+  },
+  warning: {
+    color: colors.warning,
     textAlign: 'center',
   },
   pressed: {

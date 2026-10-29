@@ -1,7 +1,10 @@
+import type { DrawHostView, DrawOptions, DrawPlayerView, Stroke } from './draw.js';
 import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from './games.js';
 import type { Avatar, Reaction } from './lobby.js';
 import type {
   AnswerPayload,
+  ChooseWordPayload,
+  GuessPayload,
   JoinRoomPayload,
   KickPlayerPayload,
   LibraryMovePayload,
@@ -43,12 +46,16 @@ export interface PublicPlayer {
  */
 export type RoomStatus = 'lobby' | 'library' | 'setup' | 'playing';
 
-/** The pre-game screen: the host's settings and who has pressed Ready. */
-export interface GameSetup {
-  gameId: 'trivia';
-  options: TriviaOptions;
-  readyIds: string[];
-}
+/** The pre-game screen: the host's settings for the chosen game and who has pressed Ready. */
+export type GameSetup =
+  | { gameId: 'trivia'; options: TriviaOptions; readyIds: string[] }
+  | { gameId: 'draw'; options: DrawOptions; readyIds: string[] };
+
+/** What the TV shows during a game. */
+export type HostView = TriviaHostView | DrawHostView;
+
+/** What one phone shows during a game. */
+export type PlayerView = TriviaPlayerView | DrawPlayerView;
 
 export interface LobbyState {
   roomCode: string;
@@ -108,7 +115,7 @@ export interface ClientToServerEvents {
   /** Leader only: games library → lobby (e.g. to wait for more players). */
   'library:close': (ack: (res: Result<null>) => void) => void;
   /** Leader only, during setup: change the settings (this un-readies the leader). */
-  'setup:options': (payload: TriviaOptions, ack: (res: Result<null>) => void) => void;
+  'setup:options': (payload: TriviaOptions | DrawOptions, ack: (res: Result<null>) => void) => void;
   /**
    * Any player, during setup. For the leader, ready means "settings confirmed". The game
    * starts as soon as every connected player is ready.
@@ -120,6 +127,19 @@ export interface ClientToServerEvents {
   'game:answer': (payload: AnswerPayload, ack: (res: Result<null>) => void) => void;
   /** Leader only: stop the game and go back to the games library. */
   'game:end': (ack: (res: Result<null>) => void) => void;
+  /** Draw & Guess, the artist while choosing: picks one of their word choices. */
+  'draw:choose': (payload: ChooseWordPayload, ack: (res: Result<null>) => void) => void;
+  /**
+   * Draw & Guess, the artist while drawing: a new stroke or more points for one in progress.
+   * Fire and forget: these arrive many times a second.
+   */
+  'draw:stroke': (stroke: Stroke) => void;
+  /** The artist: removes their last stroke. */
+  'draw:undo': () => void;
+  /** The artist: wipes the canvas. */
+  'draw:clear': () => void;
+  /** Draw & Guess, everyone but the artist while drawing. Feedback arrives in the player view. */
+  'draw:guess': (payload: GuessPayload, ack: (res: Result<null>) => void) => void;
 }
 
 /** Events broadcast by the server. */
@@ -131,7 +151,13 @@ export interface ServerToClientEvents {
   /** Sent to the TV screen only. */
   'room:reaction': (reaction: ReactionEvent) => void;
   /** Sent to the TV screen only. */
-  'game:host': (update: GameUpdate<TriviaHostView>) => void;
+  'game:host': (update: GameUpdate<HostView>) => void;
   /** Sent to each player individually, with their private view. */
-  'game:player': (update: GameUpdate<TriviaPlayerView>) => void;
+  'game:player': (update: GameUpdate<PlayerView>) => void;
+  /** Sent to the TV screen only: the artist's strokes, as they draw. */
+  'draw:stroke': (stroke: Stroke) => void;
+  'draw:undo': () => void;
+  'draw:clear': () => void;
+  /** Sent to the TV screen only: the whole drawing so far, e.g. after a refresh. */
+  'draw:sync': (strokes: Stroke[]) => void;
 }

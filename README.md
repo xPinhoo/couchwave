@@ -67,6 +67,24 @@ packages/
   same settings or go back to the games.
 - **Questions:** 32 hand-written questions per topic, shuffled per game (answers too).
 
+**Draw & Guess** (2+ players)
+
+- **Setup:** 45/60/90 seconds to draw and 1–3 rounds; everyone draws once per round.
+- **Turn:** the artist picks one of 3 words (only their phone shows them), then draws it with a
+  finger. Each stroke streams live to the TV: the phone sends points in small batches every
+  50ms, as integers relative to a 4:3 canvas, so the drawing looks the same at any size. The
+  artist has 8 colours (white is the eraser), 3 pen sizes, undo and clear.
+- **Guessing:** everyone else types guesses on their phone. Wrong guesses show on the TV; a
+  guess one letter off privately says "so close" (on the TV it would give the word away).
+  Case, accents and extra spaces don't matter. Letters of the word appear as hints at 50% and
+  75% of the time. The turn ends early once everyone has guessed.
+- **Scoring:** a correct guess scores 200 plus up to 600 for speed; the artist scores 200 for
+  each player who guessed. Nobody loses points.
+- **Server side:** the game logic is a pure state machine like trivia, while the strokes go
+  through the server without touching it: the server checks that they come from the artist,
+  caps their size, forwards them to the TV only and keeps a copy for a TV that refreshes.
+- **Words:** about 160 drawable words, never repeated within a game.
+
 ## Getting started
 
 Requires Node 24+.
@@ -94,8 +112,8 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 | `CORS_ORIGINS`         | api        | any origin (comma-separated list)    |
 | `RECONNECT_GRACE_MS`   | api        | `30000`                              |
 | `SCREEN_GRACE_MS`      | api        | `120000`                             |
-| `TRIVIA_MS_PER_SECOND` | api        | `1000` (lower it to speed up timers) |
-| `TRIVIA_REVEAL_MS`     | api        | `5000`                               |
+| `GAME_MS_PER_SECOND`   | api        | `1000` (lower it to speed up timers) |
+| `GAME_REVEAL_MS`       | api        | `5000`                               |
 | `TRIVIA_MAX_QUESTIONS` | api        | no limit                             |
 | `VITE_API_URL`         | host       | same hostname as the page, port 3000 |
 | `VITE_CONTROLLER_URL`  | host       | same hostname as the page, port 8081 |
@@ -126,7 +144,7 @@ Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
 2. **browser-tests**: Playwright opens a TV and two phones in Chromium against the built apps
-   and plays a full round of trivia. On failure the report and traces are uploaded as an
+   and plays a full game of trivia and of Draw & Guess. On failure the report and traces are uploaded as an
    artifact (open a trace with `npx playwright show-trace`).
 3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
@@ -238,5 +256,6 @@ in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
 - [ ] **M4** Accounts (email/password + Google), profiles, contact form backed by a database,
       AI-generated question packs
 - [ ] **M5** Native app: QR scanner, deep links, haptics, game history, "recently played with"
-- [ ] **M6** More games: bluff, draw & guess
+- [x] **M6a** Draw & Guess: live drawing from the phone to the TV, guesses, hints
+- [ ] **M6b** More games: bluff
 - [ ] **M7** Redis-backed rooms, load testing, observability

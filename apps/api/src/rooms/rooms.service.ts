@@ -14,7 +14,7 @@ import {
   type Player,
   type Room,
 } from '@couchwave/engine';
-import type { Avatar, ErrorCode, RoomStatus, TriviaOptions } from '@couchwave/shared';
+import type { Avatar, ErrorCode, GameId, GameSetup, RoomStatus } from '@couchwave/shared';
 import { Injectable } from '@nestjs/common';
 
 interface PlayerSession {
@@ -93,11 +93,11 @@ export class RoomsService {
     return this.update(code, (room) => moveGameSelection(room, delta));
   }
 
-  openSetup(code: string): Room | undefined {
-    return this.update(code, openSetup);
+  openSetup(code: string, gameId: GameId): Room | undefined {
+    return this.update(code, (room) => openSetup(room, gameId));
   }
 
-  setSetupOptions(code: string, options: TriviaOptions): Room | undefined {
+  setSetupOptions(code: string, options: GameSetup['options']): Room | undefined {
     return this.update(code, (room) => setSetupOptions(room, options));
   }
 

@@ -4,13 +4,15 @@ import {
   isLeader,
   startingPlayerIds,
   toLobbyState,
-  trivia,
   type Room,
 } from '@couchwave/engine';
 import {
   GAMES,
   REACTION_COOLDOWN_MS,
   answerSchema,
+  chooseWordSchema,
+  drawOptionsSchema,
+  guessSchema,
   joinRoomSchema,
   kickPlayerSchema,
   libraryMoveSchema,
@@ -18,9 +20,11 @@ import {
   readySchema,
   rejoinRoomSchema,
   resumeScreenSchema,
+  strokeSchema,
   triviaOptionsSchema,
   type ClientToServerEvents,
   type CreatedRoom,
+  type GameId,
   type JoinedRoom,
   type Result,
   type RoomClosedReason,
@@ -37,7 +41,7 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import { corsOrigins } from '../config.js';
-import { GamesService } from './games.service.js';
+import { GamesService, hostView, isOver, minPlayers, playerView } from './games.service.js';
 import { GAME_TICK_MS, RECONNECT_GRACE_MS, SCREEN_GRACE_MS } from './rooms.constants.js';
 import { RoomsService } from './rooms.service.js';
 
@@ -130,7 +134,10 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     this.server.to(room.code).emit('lobby:update', toLobbyState(room));
 
     const game = this.games.get(room.code);
-    if (game) socket.emit('game:host', { serverTime: Date.now(), view: trivia.hostView(game) });
+    if (game) {
+      socket.emit('game:host', { serverTime: Date.now(), view: hostView(game) });
+      if (game.id === 'draw') socket.emit('draw:sync', game.strokes);
+    }
 
     this.logger.log(`Screen resumed room ${room.code}`);
     return { ok: true, data: { lobby: toLobbyState(room), screenToken: result.screenToken } };
@@ -183,10 +190,10 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     const lobby = this.seatPlayer(socket, result.roomCode, result.playerId, result.room);
     // Back mid-game: send the current screen straight away instead of waiting for the next change
     const game = this.games.get(result.roomCode);
-    if (game?.playerIds.includes(result.playerId)) {
+    if (game?.state.playerIds.includes(result.playerId)) {
       socket.emit('game:player', {
         serverTime: Date.now(),
-        view: trivia.playerView(game, result.playerId),
+        view: playerView(game, result.playerId),
       });
     }
 
@@ -287,9 +294,10 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     const room = this.leaderRoom(socket);
     if (!room) return { ok: false, error: 'NOT_LEADER' };
     if (room.status !== 'library') return { ok: false, error: 'WRONG_PHASE' };
-    if (!GAMES[room.selectedGame]?.available) return { ok: false, error: 'GAME_UNAVAILABLE' };
+    const game = GAMES[room.selectedGame];
+    if (!game?.available) return { ok: false, error: 'GAME_UNAVAILABLE' };
 
-    this.broadcastLobby(this.rooms.openSetup(room.code));
+    this.broadcastLobby(this.rooms.openSetup(room.code, game.id as GameId));
     return ok;
   }
 
@@ -302,9 +310,10 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
   ): Result<null> {
     const room = this.leaderRoom(socket);
     if (!room) return { ok: false, error: 'NOT_LEADER' };
-    if (room.status !== 'setup') return { ok: false, error: 'WRONG_PHASE' };
+    if (room.status !== 'setup' || !room.setup) return { ok: false, error: 'WRONG_PHASE' };
 
-    const parsed = triviaOptionsSchema.safeParse(body);
+    const schema = room.setup.gameId === 'draw' ? drawOptionsSchema : triviaOptionsSchema;
+    const parsed = schema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
 
     this.broadcastLobby(this.rooms.setSetupOptions(room.code, parsed.data));
@@ -347,13 +356,78 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
 
     const parsed = answerSchema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    if (!this.games.get(roomCode)) return { ok: false, error: 'NO_GAME' };
+    if (this.games.get(roomCode)?.id !== 'trivia') return { ok: false, error: 'NO_GAME' };
 
     // A late or repeated answer is simply ignored; the player's view already shows their choice
     if (this.games.answer(roomCode, playerId, parsed.data.choice, Date.now())) {
       this.broadcastGame(roomCode);
     }
     return ok;
+  }
+
+  // ── Draw & Guess ───────────────────────────────────────────────────────────
+
+  @SubscribeMessage('draw:choose')
+  handleChooseWord(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Result<null> {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return { ok: false, error: 'NOT_A_PLAYER' };
+
+    const parsed = chooseWordSchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+    if (this.games.get(roomCode)?.id !== 'draw') return { ok: false, error: 'NO_GAME' };
+
+    if (!this.games.chooseWord(roomCode, playerId, parsed.data.index, Date.now())) {
+      return { ok: false, error: 'WRONG_PHASE' };
+    }
+    this.broadcastGame(roomCode);
+    return ok;
+  }
+
+  @SubscribeMessage('draw:guess')
+  handleGuess(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): Result<null> {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return { ok: false, error: 'NOT_A_PLAYER' };
+
+    const parsed = guessSchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+    if (this.games.get(roomCode)?.id !== 'draw') return { ok: false, error: 'NO_GAME' };
+
+    // Guesses that are too late, too fast or from the artist are ignored
+    if (this.games.guess(roomCode, playerId, parsed.data.text, Date.now())) {
+      this.broadcastGame(roomCode);
+    }
+    return ok;
+  }
+
+  /** Strokes go straight to the TV; the server keeps a copy for a TV that refreshes. */
+  @SubscribeMessage('draw:stroke')
+  handleStroke(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): void {
+    const { roomCode, playerId } = socket.data;
+    const parsed = strokeSchema.safeParse(body);
+    if (!roomCode || !playerId || !parsed.success) return;
+
+    if (this.games.addStroke(roomCode, playerId, parsed.data)) {
+      this.server.to(hostChannel(roomCode)).emit('draw:stroke', parsed.data);
+    }
+  }
+
+  @SubscribeMessage('draw:undo')
+  handleUndo(@ConnectedSocket() socket: GameSocket): void {
+    const { roomCode, playerId } = socket.data;
+    if (roomCode && playerId && this.games.undoStroke(roomCode, playerId)) {
+      this.server.to(hostChannel(roomCode)).emit('draw:undo');
+    }
+  }
+
+  @SubscribeMessage('draw:clear')
+  handleClear(@ConnectedSocket() socket: GameSocket): void {
+    const { roomCode, playerId } = socket.data;
+    if (roomCode && playerId && this.games.clearDrawing(roomCode, playerId)) {
+      this.server.to(hostChannel(roomCode)).emit('draw:clear');
+    }
   }
 
   /** Ends the game (early or after the final scores) and goes back to the games library. */
@@ -428,13 +502,14 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (!room?.setup || !everyoneReady(room)) return;
 
     const playerIds = startingPlayerIds(room);
-    if (playerIds.length < trivia.minPlayers) return;
+    // The setup screens tell everyone when more players are needed
+    if (playerIds.length < minPlayers(room.setup.gameId)) return;
 
     this.broadcastLobby(this.rooms.setStatus(roomCode, 'playing'));
-    this.games.start(roomCode, playerIds, room.setup.options, Date.now());
+    this.games.start(roomCode, playerIds, room.setup, Date.now());
     this.broadcastGame(roomCode);
     this.startGameLoop(roomCode);
-    this.logger.log(`Trivia (${room.setup.options.topic}) started in ${roomCode}`);
+    this.logger.log(`${room.setup.gameId} started in ${roomCode}`);
   }
 
   private closeRoom(roomCode: string, reason: RoomClosedReason): void {
@@ -455,13 +530,11 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (!game) return;
 
     const serverTime = Date.now();
-    this.server
-      .to(hostChannel(roomCode))
-      .emit('game:host', { serverTime, view: trivia.hostView(game) });
-    for (const playerId of game.playerIds) {
+    this.server.to(hostChannel(roomCode)).emit('game:host', { serverTime, view: hostView(game) });
+    for (const playerId of game.state.playerIds) {
       this.server
         .to(playerChannel(playerId))
-        .emit('game:player', { serverTime, view: trivia.playerView(game, playerId) });
+        .emit('game:player', { serverTime, view: playerView(game, playerId) });
     }
   }
 
@@ -472,7 +545,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
       if (!game) return;
 
       this.broadcastGame(roomCode);
-      if (trivia.isOver(game)) {
+      if (isOver(game)) {
         clearInterval(loop);
         this.gameLoops.delete(roomCode);
       }

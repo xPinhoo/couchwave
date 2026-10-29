@@ -1,12 +1,14 @@
-import type {
-  ClientToServerEvents,
-  CreatedRoom,
-  GameUpdate,
-  LobbyState,
-  ReactionEvent,
-  Result,
-  ServerToClientEvents,
-  TriviaHostView,
+import {
+  addStrokeChunk,
+  type ClientToServerEvents,
+  type CreatedRoom,
+  type GameUpdate,
+  type HostView,
+  type LobbyState,
+  type ReactionEvent,
+  type Result,
+  type ServerToClientEvents,
+  type Stroke,
 } from '@couchwave/shared';
 import { useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
@@ -22,10 +24,18 @@ export type HostRoomState =
   | { status: 'closed' }
   | { status: 'error'; message: string };
 
-export interface HostGame {
-  update: GameUpdate<TriviaHostView>;
+export interface HostGame<View extends HostView = HostView> {
+  update: GameUpdate<View>;
   /** Local time the update arrived, for lining up the countdown with the server clock. */
   receivedAt: number;
+}
+
+/** Narrows a game update to one game, e.g. `isGame(game, 'draw')`. */
+export function isGame<Id extends HostView['game']>(
+  game: HostGame,
+  id: Id,
+): game is HostGame<Extract<HostView, { game: Id }>> {
+  return game.update.view.game === id;
 }
 
 export interface FloatingReaction extends ReactionEvent {
@@ -47,10 +57,13 @@ export function useHostRoom() {
   const [room, setRoom] = useState<HostRoomState>({ status: 'connecting' });
   const [game, setGame] = useState<HostGame | null>(null);
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+  /** Draw & Guess: the current turn's drawing. */
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
 
   useEffect(() => {
     const socket: HostSocket = io(API_URL, { transports: ['websocket'] });
     let nextKey = 0;
+    let drawTurn: number | null = null;
 
     const enterRoom = (res: Result<CreatedRoom>) => {
       if (!res.ok) return false;
@@ -72,9 +85,22 @@ export function useHostRoom() {
 
     socket.on('lobby:update', (lobby) => {
       setRoom({ status: 'ready', lobby });
-      if (lobby.status !== 'playing') setGame(null);
+      if (lobby.status !== 'playing') {
+        setGame(null);
+        drawTurn = null;
+      }
     });
-    socket.on('game:host', (update) => setGame({ update, receivedAt: Date.now() }));
+    socket.on('game:host', (update) => {
+      setGame({ update, receivedAt: Date.now() });
+      // Every Draw & Guess turn starts on a blank canvas
+      const turn = update.view.game === 'draw' ? update.view.turn : null;
+      if (turn !== drawTurn) setStrokes([]);
+      drawTurn = turn;
+    });
+    socket.on('draw:stroke', (chunk) => setStrokes((prev) => addStrokeChunk(prev, chunk)));
+    socket.on('draw:undo', () => setStrokes((prev) => prev.slice(0, -1)));
+    socket.on('draw:clear', () => setStrokes([]));
+    socket.on('draw:sync', setStrokes);
     socket.on('room:reaction', (reaction) => {
       const key = nextKey++;
       setReactions((prev) => [...prev, { ...reaction, key }].slice(-MAX_REACTIONS_ON_SCREEN));
@@ -102,5 +128,5 @@ export function useHostRoom() {
     };
   }, []);
 
-  return { room, game, reactions };
+  return { room, game, reactions, strokes };
 }

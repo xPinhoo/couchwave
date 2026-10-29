@@ -41,12 +41,16 @@ export type Reaction = (typeof REACTIONS)[number];
 /** Minimum time between two reactions from the same player. */
 export const REACTION_COOLDOWN_MS = 300;
 
+/** The games that can be played (the library also lists some that are coming soon). */
+export type GameId = 'trivia' | 'draw';
+
 export interface GameInfo {
   id: string;
   name: string;
   emoji: string;
   description: string;
   available: boolean;
+  minPlayers: number;
 }
 
 /** What the games library shows, in order. */
@@ -55,8 +59,9 @@ export const GAMES: readonly GameInfo[] = [
     id: 'trivia',
     name: 'Quick-fire trivia',
     emoji: '🧠',
-    description: '8 questions. Answer fast for more points.',
+    description: 'Answer fast for more points, but wrong answers cost you.',
     available: true,
+    minPlayers: 1,
   },
   {
     id: 'bluff',
@@ -64,12 +69,20 @@ export const GAMES: readonly GameInfo[] = [
     emoji: '🤥',
     description: 'Write fake answers and fool your friends.',
     available: false,
+    minPlayers: 3,
   },
   {
     id: 'draw',
     name: 'Draw & Guess',
     emoji: '🎨',
-    description: 'Draw on your phone, everyone guesses on the TV.',
-    available: false,
+    description: 'Draw on your phone, everyone else guesses the word.',
+    available: true,
+    minPlayers: 2,
   },
 ];
+
+export function gameInfo(id: GameId): GameInfo {
+  const game = GAMES.find((g) => g.id === id);
+  if (!game) throw new Error(`Unknown game ${id}`);
+  return game;
+}

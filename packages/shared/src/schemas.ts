@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { PLAYER_NAME_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from './constants.js';
 import {
+  DRAW_COLORS,
+  DRAW_COORD_MAX,
+  DRAW_ROUNDS_OPTIONS,
+  DRAW_SECONDS_OPTIONS,
+  DRAW_SIZES,
+  DRAW_WORD_CHOICES,
+  GUESS_MAX_LENGTH,
+  STROKE_CHUNK_MAX,
+} from './draw.js';
+import {
   TRIVIA_CHOICES,
   TRIVIA_LENGTH_OPTIONS,
   TRIVIA_SECONDS_OPTIONS,
@@ -104,3 +114,43 @@ export const readySchema = z.object({
 });
 
 export type ReadyPayload = z.input<typeof readySchema>;
+
+export const drawOptionsSchema = z.object({
+  secondsToDraw: oneOf(DRAW_SECONDS_OPTIONS),
+  rounds: oneOf(DRAW_ROUNDS_OPTIONS),
+});
+
+export const chooseWordSchema = z.object({
+  index: z
+    .number()
+    .int()
+    .min(0)
+    .max(DRAW_WORD_CHOICES - 1),
+});
+
+export type ChooseWordPayload = z.input<typeof chooseWordSchema>;
+
+export const strokeSchema = z.object({
+  id: z.number().int().min(0).max(1_000_000),
+  color: z
+    .number()
+    .int()
+    .min(0)
+    .max(DRAW_COLORS.length - 1),
+  size: z
+    .number()
+    .int()
+    .min(0)
+    .max(DRAW_SIZES.length - 1),
+  points: z
+    .array(z.number().int().min(0).max(DRAW_COORD_MAX))
+    .min(2)
+    .max(STROKE_CHUNK_MAX)
+    .refine((points) => points.length % 2 === 0, 'Points come in x, y pairs'),
+});
+
+export const guessSchema = z.object({
+  text: z.string().trim().min(1).max(GUESS_MAX_LENGTH),
+});
+
+export type GuessPayload = z.input<typeof guessSchema>;

@@ -1,15 +1,16 @@
 import { Link } from 'react-router';
+import { DrawHost } from '../components/DrawHost';
 import { Library } from '../components/Library';
 import { Lobby } from '../components/Lobby';
 import { Reactions } from '../components/Reactions';
+import { SetupScreen } from '../components/SetupScreen';
 import { TriviaHost } from '../components/TriviaHost';
-import { TriviaSetup } from '../components/TriviaSetup';
 import { CONTROLLER_URL } from '../config';
-import { useHostRoom } from '../useHostRoom';
+import { isGame, useHostRoom } from '../useHostRoom';
 
 /** The TV screen. It only displays; the leader controls everything from their phone. */
 export function RoomPage() {
-  const { room, game, reactions } = useHostRoom();
+  const { room, game, reactions, strokes } = useHostRoom();
 
   switch (room.status) {
     case 'connecting':
@@ -41,12 +42,14 @@ export function RoomPage() {
       const { lobby } = room;
       return (
         <>
-          {lobby.status === 'playing' && game ? (
+          {lobby.status === 'playing' && game && isGame(game, 'trivia') ? (
             <TriviaHost game={game} lobby={lobby} />
+          ) : lobby.status === 'playing' && game && isGame(game, 'draw') ? (
+            <DrawHost game={game} lobby={lobby} strokes={strokes} />
           ) : lobby.status === 'library' ? (
             <Library lobby={lobby} />
           ) : lobby.status === 'setup' ? (
-            <TriviaSetup lobby={lobby} />
+            <SetupScreen lobby={lobby} />
           ) : (
             <Lobby lobby={lobby} controllerUrl={CONTROLLER_URL} />
           )}

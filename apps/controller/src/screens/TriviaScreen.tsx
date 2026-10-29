@@ -1,12 +1,13 @@
-import { CHOICE_STYLES } from '@couchwave/shared';
-import { useEffect, useState } from 'react';
+import { CHOICE_STYLES, type TriviaPlayerView } from '@couchwave/shared';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { EndGameButton } from '../components/EndGameButton';
+import { GameOver } from '../components/GameOver';
 import { colors } from '../theme';
 import { useCountdown } from '../useCountdown';
 import type { PlayerGame } from '../useController';
 
 interface TriviaScreenProps {
-  game: PlayerGame;
+  game: PlayerGame<TriviaPlayerView>;
   /** False while our own connection is down. */
   connected: boolean;
   /** The host can end the game, replay it, or go back to the games library. */
@@ -30,41 +31,16 @@ export function TriviaScreen({
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
   const standing = `${view.score} pts · ${ordinal(view.rank)} of ${view.playerCount}`;
-  // Ending a game early takes two taps, so a stray tap can't ruin it for everyone
-  const [confirmingEnd, setConfirmingEnd] = useState(false);
-
-  useEffect(() => {
-    if (!confirmingEnd) return;
-    const timeout = setTimeout(() => setConfirmingEnd(false), 3000);
-    return () => clearTimeout(timeout);
-  }, [confirmingEnd]);
-
   if (view.phase === 'finished') {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.eyebrow}>Game over</Text>
-        <Text style={styles.big}>
-          {view.rank === 1 ? '🏆 You won!' : `You finished ${ordinal(view.rank)}`}
-        </Text>
-        <Text style={styles.muted}>{view.score} points</Text>
-        {isLeader ? (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              disabled={!connected}
-              onPress={onPlayAgain}
-              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-            >
-              <Text style={styles.primaryText}>Play again</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" disabled={!connected} onPress={onEnd}>
-              <Text style={styles.secondaryText}>Back to the games</Text>
-            </Pressable>
-          </>
-        ) : (
-          <Text style={styles.muted}>Waiting for the host to pick the next game…</Text>
-        )}
-      </View>
+      <GameOver
+        rank={view.rank}
+        score={view.score}
+        connected={connected}
+        isLeader={isLeader}
+        onPlayAgain={onPlayAgain}
+        onEnd={onEnd}
+      />
     );
   }
 
@@ -90,15 +66,7 @@ export function TriviaScreen({
         Question {view.round}/{view.totalRounds}
       </Text>
       <Text style={styles.timer}>{Math.ceil(msLeft / 1000)}s</Text>
-      {isLeader && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => (confirmingEnd ? onEnd() : setConfirmingEnd(true))}
-          style={[styles.endButton, confirmingEnd && styles.endButtonArmed]}
-        >
-          <Text style={styles.endText}>{confirmingEnd ? 'Tap to confirm' : 'End game'}</Text>
-        </Pressable>
-      )}
+      {isLeader && <EndGameButton onEnd={onEnd} />}
     </View>
   );
 
@@ -235,39 +203,6 @@ const styles = StyleSheet.create({
   lockedSymbol: {
     color: colors.text,
     fontSize: 56,
-  },
-  endButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  endButtonArmed: {
-    borderColor: colors.danger,
-    backgroundColor: colors.danger,
-  },
-  endText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  primary: {
-    marginTop: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    backgroundColor: colors.accent,
-  },
-  primaryText: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  secondaryText: {
-    color: colors.muted,
-    fontWeight: '600',
-    padding: 8,
   },
   correctBg: {
     backgroundColor: '#1d5a3f',

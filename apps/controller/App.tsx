@@ -3,16 +3,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { initialRoomCode } from './src/config';
 import { StatusBanner } from './src/components/StatusBanner';
+import { DrawScreen } from './src/screens/DrawScreen';
 import { JoinScreen } from './src/screens/JoinScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { TriviaScreen } from './src/screens/TriviaScreen';
 import { colors } from './src/theme';
-import { useController } from './src/useController';
+import { isGame, useController } from './src/useController';
 
 export default function App() {
-  const { state, game, actionError, join, answer, react, setReady, leader, reset } =
+  const { state, game, actionError, join, answer, drawing, react, setReady, leader, reset } =
     useController();
 
   return (
@@ -25,14 +26,26 @@ export default function App() {
               connected={state.connected}
               screenConnected={state.lobby.screenConnected}
             />
-            <TriviaScreen
-              game={game}
-              connected={state.connected}
-              isLeader={state.lobby.leaderId === state.playerId}
-              onAnswer={answer}
-              onEnd={() => void leader.endGame()}
-              onPlayAgain={() => void leader.playAgain()}
-            />
+            {isGame(game, 'trivia') ? (
+              <TriviaScreen
+                game={game}
+                connected={state.connected}
+                isLeader={state.lobby.leaderId === state.playerId}
+                onAnswer={answer}
+                onEnd={() => void leader.endGame()}
+                onPlayAgain={() => void leader.playAgain()}
+              />
+            ) : isGame(game, 'draw') ? (
+              <DrawScreen
+                game={game}
+                players={state.lobby.players}
+                connected={state.connected}
+                isLeader={state.lobby.leaderId === state.playerId}
+                actions={drawing}
+                onEnd={() => void leader.endGame()}
+                onPlayAgain={() => void leader.playAgain()}
+              />
+            ) : null}
           </>
         ) : state.status === 'lobby' && state.lobby.status === 'playing' ? (
           // Joined or came back after the game started: they play the next one

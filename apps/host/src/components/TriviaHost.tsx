@@ -1,42 +1,19 @@
 import {
   CHOICE_STYLES,
   triviaTopic,
-  type LeaderboardEntry,
   type LobbyState,
-  type PublicPlayer,
   type TriviaHostView,
 } from '@couchwave/shared';
 import type { CSSProperties } from 'react';
 import type { HostGame } from '../useHostRoom';
 import { useCountdown } from '../useCountdown';
+import { FinalScores } from './FinalScores';
 import { PlayerAvatar } from './PlayerAvatar';
+import { Gained, PlayerTag, type PlayerLookup } from './PlayerTag';
 
 interface TriviaHostProps {
-  game: HostGame;
+  game: HostGame<TriviaHostView>;
   lobby: LobbyState;
-}
-
-type PlayerLookup = (id: string) => PublicPlayer | undefined;
-
-/** Avatar and name; players who left mid-game show as a plain "Player". */
-function PlayerTag({ player, size = 32 }: { player: PublicPlayer | undefined; size?: number }) {
-  return (
-    <span className="player-tag">
-      {player && <PlayerAvatar avatar={player.avatar} size={size} />}
-      {player?.name ?? 'Player'}
-    </span>
-  );
-}
-
-/** "+850" in green, "−250" in red. */
-function Gained({ points }: { points: number }) {
-  if (points === 0) return null;
-  return (
-    <span className={points > 0 ? 'gained' : 'lost'}>
-      {' '}
-      {points > 0 ? `+${points}` : `−${Math.abs(points)}`}
-    </span>
-  );
 }
 
 /** Display only: the leader ends the game or goes back to the library from their phone. */
@@ -46,8 +23,13 @@ export function TriviaHost({ game, lobby }: TriviaHostProps) {
   const playerOf: PlayerLookup = (id) => lobby.players.find((p) => p.id === id);
 
   if (view.phase === 'finished') {
-    const leader = lobby.leaderId ? (playerOf(lobby.leaderId)?.name ?? null) : null;
-    return <FinalScores view={view} playerOf={playerOf} leader={leader} />;
+    return (
+      <FinalScores
+        leaderboard={view.leaderboard}
+        players={lobby.players}
+        leaderId={lobby.leaderId}
+      />
+    );
   }
 
   const revealed = view.phase === 'reveal';
@@ -136,60 +118,6 @@ export function TriviaHost({ game, lobby }: TriviaHostProps) {
           </span>
         </footer>
       )}
-    </main>
-  );
-}
-
-/** Second, first and third place, in that order, so the winner stands in the middle. */
-const PODIUM_ORDER = [1, 0, 2];
-
-function FinalScores({
-  view,
-  playerOf,
-  leader,
-}: {
-  view: TriviaHostView;
-  playerOf: PlayerLookup;
-  leader: string | null;
-}) {
-  const top = view.leaderboard.slice(0, 3);
-  const rest = view.leaderboard.slice(3);
-
-  return (
-    <main className="final">
-      <p className="eyebrow">Final scores</p>
-
-      <ol className="podium" aria-label="Podium">
-        {PODIUM_ORDER.map((place) => {
-          const entry: LeaderboardEntry | undefined = top[place];
-          if (!entry) return null;
-          const player = playerOf(entry.playerId);
-          return (
-            <li key={entry.playerId} className={`step place-${place + 1}`}>
-              {player && <PlayerAvatar avatar={player.avatar} size={place === 0 ? 96 : 72} />}
-              <span className="podium-name">{player?.name ?? 'Player'}</span>
-              <span className="score">{entry.score}</span>
-              <span className="block" aria-label={`Place ${place + 1}`}>
-                {place === 0 ? '🏆' : place + 1}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-
-      {rest.length > 0 && (
-        <ol className="rest" start={4} aria-label="Everyone else">
-          {rest.map((entry, i) => (
-            <li key={entry.playerId}>
-              <span className="place">{i + 4}</span>
-              <PlayerTag player={playerOf(entry.playerId)} />
-              <span className="score">{entry.score}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {leader && <p className="hint">{leader} can play again or pick another game</p>}
     </main>
   );
 }

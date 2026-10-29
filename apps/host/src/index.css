@@ -878,6 +878,137 @@ a {
   font-size: 1.25rem;
 }
 
+/* Draw & Guess */
+
+.draw {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 1.5rem;
+  min-height: 100vh;
+  padding: 2rem 4rem;
+}
+
+.draw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 2rem;
+  align-items: start;
+}
+
+.draw-stage {
+  position: relative;
+}
+
+/* Same 4:3 shape as the artist's pad, so the drawing looks the same */
+.draw-canvas {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 10rem);
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 1rem 3rem #0006;
+}
+
+.draw-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  border-radius: 1rem;
+  background: #0f0b1ee6;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.draw-overlay p {
+  margin: 0;
+}
+
+.draw-answer {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  margin: 0;
+  padding: 0.75rem 1.75rem;
+  border-radius: 999px;
+  background: var(--accent);
+  font-size: 2rem;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: pop-in 300ms ease-out;
+}
+
+.draw-side {
+  display: grid;
+  gap: 1rem;
+  font-size: 1.25rem;
+}
+
+.draw-side > .hint {
+  margin: -0.75rem 0 0;
+}
+
+.draw-hint {
+  margin: 0.5rem 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.35em;
+  white-space: pre-wrap;
+}
+
+.draw-guessed,
+.draw-feed {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draw-guessed li {
+  color: #46d39a;
+  font-weight: 700;
+}
+
+.draw-feed li {
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+  animation: fade-in 200ms ease-out;
+}
+
+.draw-feed-name {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.draw-side .leaderboard {
+  width: 100%;
+}
+
+.draw-side .leaderboard li {
+  font-size: 1.15rem;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.9);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 800px) {
   .lobby {
     grid-template-columns: 1fr;
@@ -889,6 +1020,14 @@ a {
   }
 
   .choices {
+    grid-template-columns: 1fr;
+  }
+
+  .draw {
+    padding: 1rem;
+  }
+
+  .draw-layout {
     grid-template-columns: 1fr;
   }
 }

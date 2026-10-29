@@ -1,16 +1,22 @@
 import type { AddressInfo } from 'node:net';
-import { GAMES, type ClientToServerEvents, type ServerToClientEvents } from '@couchwave/shared';
+import {
+  GAMES,
+  type ClientToServerEvents,
+  type DrawHostView,
+  type DrawPlayerView,
+  type GameUpdate,
+  type ServerToClientEvents,
+  type Stroke,
+  type TriviaHostView,
+  type TriviaPlayerView,
+} from '@couchwave/shared';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
-import {
-  RECONNECT_GRACE_MS,
-  SCREEN_GRACE_MS,
-  TRIVIA_CONFIG,
-} from '../src/rooms/rooms.constants.js';
+import { GAME_CONFIG, RECONNECT_GRACE_MS, SCREEN_GRACE_MS } from '../src/rooms/rooms.constants.js';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -31,7 +37,7 @@ describe('Rooms (e2e)', () => {
       .useValue(GRACE_MS)
       .overrideProvider(SCREEN_GRACE_MS)
       .useValue(SCREEN_GRACE)
-      .overrideProvider(TRIVIA_CONFIG)
+      .overrideProvider(GAME_CONFIG)
       // A "second" lasts 40ms, so a 10s question takes 400ms; games are capped at 2 questions
       .useValue({ revealMs: 150, msPerSecond: 40, maxQuestions: 2 })
       .compile();
@@ -89,6 +95,28 @@ describe('Rooms (e2e)', () => {
     new Promise<Parameters<ServerToClientEvents[E]>[0]>((resolve) => {
       client.once(event, ((arg: Parameters<ServerToClientEvents[E]>[0]) => resolve(arg)) as never);
     });
+
+  /**
+   * Resolves with the first game update matching `match`, failing after `timeoutMs`.
+   * `U` narrows the update to the game being tested.
+   */
+  function waitFor<U>(
+    client: Client,
+    event: 'game:host' | 'game:player',
+    match: (update: U) => boolean,
+    timeoutMs = 3_000,
+  ): Promise<U> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`No matching ${event}`)), timeoutMs);
+      const listener = (update: U) => {
+        if (!match(update)) return;
+        clearTimeout(timer);
+        client.off(event, listener as never);
+        resolve(update);
+      };
+      client.on(event, listener as never);
+    });
+  }
 
   it('GET /health', async () => {
     const res = await request(app.getHttpServer()).get('/health');
@@ -470,27 +498,8 @@ describe('Rooms (e2e)', () => {
   });
 
   describe('trivia', () => {
-    type HostUpdate = Parameters<ServerToClientEvents['game:host']>[0];
-    type PlayerUpdate = Parameters<ServerToClientEvents['game:player']>[0];
-
-    /** Resolves with the first update matching `match`, failing after `timeoutMs`. */
-    function waitFor<U>(
-      client: Client,
-      event: 'game:host' | 'game:player',
-      match: (update: U) => boolean,
-      timeoutMs = 3_000,
-    ): Promise<U> {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`No matching ${event}`)), timeoutMs);
-        const listener = (update: U) => {
-          if (!match(update)) return;
-          clearTimeout(timer);
-          client.off(event, listener as never);
-          resolve(update);
-        };
-        client.on(event, listener as never);
-      });
-    }
+    type HostUpdate = GameUpdate<TriviaHostView>;
+    type PlayerUpdate = GameUpdate<TriviaPlayerView>;
 
     const hostSees = (host: Client, match: (u: HostUpdate) => boolean) =>
       waitFor<HostUpdate>(host, 'game:host', match);
@@ -687,6 +696,166 @@ describe('Rooms (e2e)', () => {
       const screen = playerSees(phone, () => true);
       await phone.emitWithAck('room:rejoin', { sessionToken: ana.sessionToken });
       expect((await screen).view).toMatchObject({ round: 1, phase: 'question' });
+    });
+  });
+
+  describe('draw & guess', () => {
+    type HostUpdate = GameUpdate<DrawHostView>;
+    type PlayerUpdate = GameUpdate<DrawPlayerView>;
+    const ok = { ok: true, data: null };
+    const quick = { secondsToDraw: 45, rounds: 1 } as const;
+    const stroke: Stroke = { id: 1, color: 0, size: 1, points: [100, 100, 200, 250] };
+
+    const hostSees = (host: Client, match: (u: HostUpdate) => boolean) =>
+      waitFor<HostUpdate>(host, 'game:host', match);
+    const playerSees = (player: Client, match: (u: PlayerUpdate) => boolean) =>
+      waitFor<PlayerUpdate>(player, 'game:player', match);
+    /** Resolves true if `event` arrives within `ms`. */
+    const arrives = (client: Client, event: keyof ServerToClientEvents, ms = 150) =>
+      new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), ms);
+        client.once(event, () => {
+          clearTimeout(timer);
+          resolve(true);
+        });
+      });
+
+    /** Ana (the leader) picks Draw & Guess, the last game in the library. */
+    async function inDrawSetup() {
+      const { host, roomCode, screenToken } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+      await ana.client.emitWithAck('library:open');
+      await ana.client.emitWithAck('library:move', { delta: -1 });
+      const opened = next(host, 'lobby:update');
+      expect(await ana.client.emitWithAck('library:select')).toEqual(ok);
+      return { host, roomCode, screenToken, ana, rui, lobby: await opened };
+    }
+
+    /** Started, with Ana (first to join) drawing first. Resolves once she sees her words. */
+    async function startedDraw() {
+      const setup = await inDrawSetup();
+      const { ana, rui } = setup;
+      const choosing = playerSees(ana.client, (u) => u.view.phase === 'choosing');
+      await ana.client.emitWithAck('setup:options', quick);
+      await rui.client.emitWithAck('setup:ready', { ready: true });
+      await ana.client.emitWithAck('setup:ready', { ready: true });
+      return { ...setup, choices: (await choosing).view.wordChoices };
+    }
+
+    /** Ana chooses her first word; resolves with it once the TV shows the drawing phase. */
+    async function drawing() {
+      const game = await startedDraw();
+      const started = hostSees(game.host, (u) => u.view.phase === 'drawing');
+      expect(await game.ana.client.emitWithAck('draw:choose', { index: 0 })).toEqual(ok);
+      return { ...game, word: game.choices[0]!, hostView: (await started).view };
+    }
+
+    it('opens its own settings, validated as Draw & Guess settings', async () => {
+      const { ana, lobby } = await inDrawSetup();
+      expect(lobby.setup).toEqual({
+        gameId: 'draw',
+        options: { secondsToDraw: 60, rounds: 1 },
+        readyIds: [],
+      });
+      const trivia = { topic: 'music', secondsPerQuestion: 30, questionCount: 20 } as const;
+      expect(await ana.client.emitWithAck('setup:options', trivia)).toEqual({
+        ok: false,
+        error: 'INVALID_PAYLOAD',
+      });
+      expect(await ana.client.emitWithAck('setup:options', quick)).toEqual(ok);
+    });
+
+    it('needs at least two players to start', async () => {
+      const { host, ana, rui } = await inDrawSetup();
+      rui.client.disconnect();
+      await sleep(50);
+      const started = arrives(host, 'game:host');
+      await ana.client.emitWithAck('setup:ready', { ready: true });
+      expect(await started).toBe(false);
+    });
+
+    it('shows the word choices to the artist only, and only the artist can choose', async () => {
+      const { rui, choices } = await startedDraw();
+      expect(choices).toHaveLength(3);
+      expect(await rui.client.emitWithAck('draw:choose', { index: 0 })).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+    });
+
+    it('streams the strokes of the artist to the TV only, with undo and clear', async () => {
+      const { host, ana, rui, word, hostView } = await drawing();
+      expect(hostView.hint).toMatch(/^[_ ]+$/);
+      expect(hostView.hint).toHaveLength(word.length);
+
+      // Someone who isn't drawing can't draw
+      const fromRui = arrives(host, 'draw:stroke');
+      rui.client.emit('draw:stroke', stroke);
+      expect(await fromRui).toBe(false);
+
+      const onTv = next(host, 'draw:stroke');
+      const onRuisPhone = arrives(rui.client, 'draw:stroke');
+      ana.client.emit('draw:stroke', stroke);
+      expect(await onTv).toEqual(stroke);
+      expect(await onRuisPhone).toBe(false);
+
+      const undo = arrives(host, 'draw:undo');
+      ana.client.emit('draw:undo');
+      expect(await undo).toBe(true);
+      const clear = arrives(host, 'draw:clear');
+      ana.client.emit('draw:clear');
+      expect(await clear).toBe(true);
+    });
+
+    it('rejects malformed strokes', async () => {
+      const { host, ana } = await drawing();
+      const received = arrives(host, 'draw:stroke');
+      ana.client.emit('draw:stroke', { ...stroke, points: [1, 2, 3] });
+      ana.client.emit('draw:stroke', { ...stroke, color: 99 });
+      ana.client.emit('draw:stroke', { ...stroke, points: [5000, 5000] });
+      expect(await received).toBe(false);
+    });
+
+    it('shows wrong guesses on the TV, and ends the turn once everyone guessed', async () => {
+      const { host, ana, rui, word } = await drawing();
+
+      const wrong = hostSees(host, (u) => u.view.feed.length === 1);
+      expect(await rui.client.emitWithAck('draw:guess', { text: 'definitely not it' })).toEqual(ok);
+      expect((await wrong).view.feed).toEqual([
+        { playerId: rui.playerId, text: 'definitely not it' },
+      ]);
+
+      await sleep(550); // the guess cooldown
+      const reveal = hostSees(host, (u) => u.view.phase === 'reveal');
+      const anaResult = playerSees(ana.client, (u) => u.view.phase === 'reveal');
+      await rui.client.emitWithAck('draw:guess', { text: word.toUpperCase() });
+
+      const { view } = await reveal;
+      expect(view).toMatchObject({ hint: word, guessedIds: [rui.playerId] });
+      const ruiGained = view.leaderboard.find((e) => e.playerId === rui.playerId)?.gained;
+      expect(ruiGained).toBeGreaterThan(200);
+      expect((await anaResult).view).toMatchObject({ word, gained: 200 });
+
+      // Then it's Rui's turn to draw
+      const ruiChooses = playerSees(rui.client, (u) => u.view.phase === 'choosing');
+      expect((await ruiChooses).view).toMatchObject({ isArtist: true, turn: 2, totalTurns: 2 });
+    });
+
+    it('gives a TV that refreshes mid-turn the drawing so far', async () => {
+      const { host, roomCode, screenToken, ana } = await drawing();
+      const relayed = next(host, 'draw:stroke');
+      ana.client.emit('draw:stroke', stroke);
+      ana.client.emit('draw:stroke', { ...stroke, points: [300, 300] });
+      await relayed;
+      await sleep(50);
+      host.disconnect();
+
+      const tv = await connect();
+      const synced = next(tv, 'draw:sync');
+      const res = await tv.emitWithAck('room:resume', { screenToken });
+      expect(res.ok && res.data.lobby.roomCode).toBe(roomCode);
+      expect(await synced).toEqual([{ ...stroke, points: [100, 100, 200, 250, 300, 300] }]);
     });
   });
 });

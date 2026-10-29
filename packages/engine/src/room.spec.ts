@@ -1,4 +1,5 @@
 import {
+  DEFAULT_DRAW_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
   GAMES,
   MAX_PLAYERS,
@@ -137,7 +138,7 @@ describe('leader', () => {
 
 describe('game setup', () => {
   const music: TriviaOptions = { topic: 'music', secondsPerQuestion: 30, questionCount: 20 };
-  const setupRoom = () => openSetup(roomWith('ana', 'rui'));
+  const setupRoom = () => openSetup(roomWith('ana', 'rui'), 'trivia');
   const readyIds = (room: Room) => room.setup?.readyIds;
 
   it('opens with the default settings and nobody ready', () => {
@@ -149,7 +150,16 @@ describe('game setup', () => {
 
   it('remembers the settings of the previous game', () => {
     const played = { ...setSetupOptions(setupRoom(), music), status: 'library' as const };
-    expect(openSetup(played).setup?.options).toEqual(music);
+    expect(openSetup(played, 'trivia').setup?.options).toEqual(music);
+  });
+
+  it('starts another game from its own defaults', () => {
+    const played = { ...setSetupOptions(setupRoom(), music), status: 'library' as const };
+    expect(openSetup(played, 'draw').setup).toEqual({
+      gameId: 'draw',
+      options: DEFAULT_DRAW_OPTIONS,
+      readyIds: [],
+    });
   });
 
   it('keeps the ready list in join order and lets players change their mind', () => {

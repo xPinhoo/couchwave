@@ -38,8 +38,8 @@ export default defineConfig({
       env: {
         PORT: '3000',
         // Fast games: a "10 second" question lasts 3s, 3 questions, short reveals
-        TRIVIA_MS_PER_SECOND: '300',
-        TRIVIA_REVEAL_MS: '1500',
+        GAME_MS_PER_SECOND: '300',
+        GAME_REVEAL_MS: '1500',
         TRIVIA_MAX_QUESTIONS: '3',
         RECONNECT_GRACE_MS: '3000',
         SCREEN_GRACE_MS: '10000',

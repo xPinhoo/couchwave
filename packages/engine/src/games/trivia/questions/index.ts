@@ -1,4 +1,5 @@
 import type { TriviaTopic } from '@couchwave/shared';
+import { shuffle } from '../../../random.js';
 import type { TriviaQuestion } from '../trivia.js';
 import { CINEMA } from './cinema.js';
 import { GENERAL } from './general.js';
@@ -19,15 +20,6 @@ export const QUESTION_BANKS: Record<TriviaTopic, readonly QuestionSource[]> = {
   geography: GEOGRAPHY,
   history: HISTORY,
 };
-
-function shuffle<T>(items: readonly T[], random: () => number): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [result[i], result[j]] = [result[j]!, result[i]!];
-  }
-  return result;
-}
 
 /** Picks `count` random questions and shuffles each one's choices. */
 export function pickQuestions(

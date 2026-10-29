@@ -1,4 +1,4 @@
-import { DEFAULT_TRIVIA_CONFIG, type TriviaConfig } from './rooms/rooms.constants.js';
+import { DEFAULT_GAME_CONFIG, type GameConfig } from './rooms/rooms.constants.js';
 
 /**
  * Comma-separated list of allowed origins in production (CORS_ORIGINS=https://a.app,https://b.app).
@@ -25,14 +25,13 @@ export function screenGraceMs(): number {
 }
 
 /**
- * Trivia timing. Production uses the defaults; the browser tests speed games up with
- * TRIVIA_MS_PER_SECOND (how long one "second" lasts), TRIVIA_REVEAL_MS and
- * TRIVIA_MAX_QUESTIONS.
+ * Game timing. Production uses the defaults; the browser tests speed games up with
+ * GAME_MS_PER_SECOND (how long one "second" lasts), GAME_REVEAL_MS and TRIVIA_MAX_QUESTIONS.
  */
-export function triviaConfig(): TriviaConfig {
+export function gameConfig(): GameConfig {
   return {
-    revealMs: positiveIntEnv('TRIVIA_REVEAL_MS', DEFAULT_TRIVIA_CONFIG.revealMs),
-    msPerSecond: positiveIntEnv('TRIVIA_MS_PER_SECOND', DEFAULT_TRIVIA_CONFIG.msPerSecond),
-    maxQuestions: positiveIntEnv('TRIVIA_MAX_QUESTIONS', DEFAULT_TRIVIA_CONFIG.maxQuestions),
+    revealMs: positiveIntEnv('GAME_REVEAL_MS', DEFAULT_GAME_CONFIG.revealMs),
+    msPerSecond: positiveIntEnv('GAME_MS_PER_SECOND', DEFAULT_GAME_CONFIG.msPerSecond),
+    maxQuestions: positiveIntEnv('TRIVIA_MAX_QUESTIONS', DEFAULT_GAME_CONFIG.maxQuestions),
   };
 }
