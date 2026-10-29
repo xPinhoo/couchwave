@@ -116,11 +116,11 @@ scan the Expo QR code printed by `npm run dev` with Expo Go.
 
 ## Deployment
 
-| App        | Where                                 | URL                                     |
-| ---------- | ------------------------------------- | --------------------------------------- |
-| API        | Coolify on an Oracle Cloud ARM server | the `API_URL` repository variable       |
-| Host       | Vercel                                | https://couchwave-host.vercel.app       |
-| Controller | Vercel                                | https://couchwave-controller.vercel.app |
+| App        | Where                             | URL                                     |
+| ---------- | --------------------------------- | --------------------------------------- |
+| API        | Render (free plan), Coolify later | the `API_URL` repository variable       |
+| Host       | Vercel                            | https://couchwave-host.vercel.app       |
+| Controller | Vercel                            | https://couchwave-controller.vercel.app |
 
 Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
@@ -130,9 +130,11 @@ Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
    artifact (open a trace with `npx playwright show-trace`).
 3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
-4. **deploy-api**: asks Coolify to deploy (its API), waits until the deploy finishes, then
-   smoke-tests `/health`. Coolify builds the image on the server and only switches traffic
-   once the container's health check passes.
+4. **deploy-api**: on **Render**, calls the deploy hook for this commit and waits until
+   `/health` reports it (`/health` returns the running commit). On **Coolify**, asks Coolify's
+   API to deploy, waits until the deploy finishes, then smoke-tests `/health`. Either way the
+   image is built from [`apps/api/Dockerfile`](apps/api/Dockerfile) and traffic only switches
+   once the health check passes.
 5. **deploy-web**: writes `API_URL` into each app's `.env.production.local`, builds the host
    and controller on the runner and uploads the output to Vercel. This runs after the API so
    the web apps never talk to an older API.
@@ -146,7 +148,20 @@ which ends any games in progress.
 
 ### One-time setup
 
-**Oracle Cloud server**
+The API runs on **Render** for now ([`render.yaml`](render.yaml)). The free plan sleeps after
+15 idle minutes and takes up to a minute to wake: the home page pings `/health` to start it
+early, and the TV shows "Waking up the server…" meanwhile. The plan is to move it to
+**Coolify on an Oracle Cloud** Always Free ARM server once one is available; CI supports both.
+
+**Render**
+
+1. Sign in at render.com with GitHub, then New → **Blueprint** → this repository. It reads
+   `render.yaml`: a free Docker web service in Frankfurt, health check `/health`, auto-deploy
+   off and `CORS_ORIGINS` set to the two Vercel apps.
+2. Once it's live, copy its URL (e.g. `https://couchwave-api.onrender.com`) for `API_URL`.
+3. Service → Settings → **Deploy Hook**: copy the URL into the `RENDER_DEPLOY_HOOK_URL` secret.
+
+**Oracle Cloud server** (for Coolify)
 
 1. Create an Always Free **VM.Standard.A1.Flex** (ARM) instance with **Ubuntu 24.04** and your
    SSH key. 1–2 OCPUs and 6–12 GB of RAM is plenty.
@@ -192,18 +207,20 @@ which ends any games in progress.
 | Variable           | Value                                                |
 | ------------------ | ---------------------------------------------------- |
 | `API_URL`          | the API's public URL, e.g. `https://api.example.com` |
-| `COOLIFY_URL`      | the Coolify dashboard URL                            |
-| `COOLIFY_APP_UUID` | the API app's UUID in Coolify                        |
+| `COOLIFY_URL`      | Coolify only: the dashboard URL                      |
+| `COOLIFY_APP_UUID` | Coolify only: the API app's UUID                     |
 
 | Secret                         | Value                         |
 | ------------------------------ | ----------------------------- |
-| `COOLIFY_TOKEN`                | the Coolify API token         |
+| `RENDER_DEPLOY_HOOK_URL`       | Render only: the deploy hook  |
+| `COOLIFY_TOKEN`                | Coolify only: the API token   |
 | `VERCEL_TOKEN`                 | the Vercel token              |
 | `VERCEL_ORG_ID`                | the Vercel Team ID            |
 | `VERCEL_HOST_PROJECT_ID`       | the `couchwave-host` ID       |
 | `VERCEL_CONTROLLER_PROJECT_ID` | the `couchwave-controller` ID |
 
-The API address lives only in the `API_URL` variable; changing it and re-running the workflow
+When `RENDER_DEPLOY_HOOK_URL` is set CI deploys to Render, otherwise to Coolify if its
+settings exist. The API address lives only in the `API_URL` variable; changing it and re-running the workflow
 moves both web apps to the new API. If a `*.vercel.app` name is taken, update the Vercel URLs
 in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
 

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router';
+import { API_URL } from '../config';
 import { clearScreenToken } from '../screenSession';
 
 const STEPS = [
@@ -17,6 +19,12 @@ const STEPS = [
 ];
 
 export function HomePage() {
+  // Wake the API up early: a free-plan server can take a minute to start, and visitors
+  // usually read this page before pressing Create Game Room
+  useEffect(() => {
+    fetch(`${API_URL}/health`).catch(() => {});
+  }, []);
+
   return (
     <>
       <section className="hero">

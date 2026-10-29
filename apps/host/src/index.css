@@ -29,16 +29,24 @@ body {
 .status {
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: 1rem;
   min-height: 100vh;
   margin: 0;
   font-size: 1.5rem;
   color: var(--muted);
 }
 
+.status p {
+  margin: 0;
+}
+
+.status .status-hint {
+  font-size: 1rem;
+}
+
 .status.error {
   color: var(--danger);
-  align-content: center;
-  gap: 1rem;
 }
 
 a {

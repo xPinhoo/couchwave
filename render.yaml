@@ -1,0 +1,17 @@
+# Render Blueprint for the API (Render dashboard → New → Blueprint → this repository).
+# The web apps stay on Vercel. Deploys are triggered by CI through a deploy hook once the
+# tests pass, so Render's own auto-deploy is turned off.
+services:
+  - type: web
+    name: couchwave-api
+    runtime: docker
+    plan: free
+    # Closest Render region to Portugal
+    region: frankfurt
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: CORS_ORIGINS
+        value: https://couchwave-host.vercel.app,https://couchwave-controller.vercel.app

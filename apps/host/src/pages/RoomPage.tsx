@@ -13,7 +13,16 @@ export function RoomPage() {
 
   switch (room.status) {
     case 'connecting':
-      return <p className="status">Connecting…</p>;
+      return room.waking ? (
+        <div className="status" role="status">
+          <p>Waking up the server…</p>
+          <p className="status-hint">
+            It sleeps when nobody is playing. This takes up to a minute.
+          </p>
+        </div>
+      ) : (
+        <p className="status">Connecting…</p>
+      );
     case 'closed':
       return (
         <div className="status">

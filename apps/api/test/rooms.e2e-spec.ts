@@ -93,7 +93,7 @@ describe('Rooms (e2e)', () => {
   it('GET /health', async () => {
     const res = await request(app.getHttpServer()).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.body).toEqual({ status: 'ok', commit: null });
   });
 
   it('the TV creates a room with a 4-letter code, an empty lobby and a screen token', async () => {

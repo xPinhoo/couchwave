@@ -4,6 +4,7 @@ import { Controller, Get } from '@nestjs/common';
 export class HealthController {
   @Get()
   check() {
-    return { status: 'ok' };
+    // The deployed commit (set by Render), so CI can tell when a new deploy is live
+    return { status: 'ok', commit: process.env.RENDER_GIT_COMMIT ?? null };
   }
 }

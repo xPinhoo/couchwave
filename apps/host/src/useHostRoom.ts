@@ -16,7 +16,8 @@ import { clearScreenToken, loadScreenToken, saveScreenToken } from './screenSess
 type HostSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export type HostRoomState =
-  | { status: 'connecting' }
+  /** `waking`: the first attempts failed, probably because the free server is starting up. */
+  | { status: 'connecting'; waking?: boolean }
   | { status: 'ready'; lobby: LobbyState }
   | { status: 'closed' }
   | { status: 'error'; message: string };
@@ -35,6 +36,8 @@ export interface FloatingReaction extends ReactionEvent {
 /** How long a reaction floats on screen. Matches the CSS animation. */
 export const REACTION_LIFETIME_MS = 2_500;
 const MAX_REACTIONS_ON_SCREEN = 30;
+/** A sleeping free-plan server takes up to about a minute to wake; only then show an error. */
+const WAKE_UP_MS = 90_000;
 
 /**
  * Connects to the API, creates (or, after a refresh, resumes) a room and keeps its lobby,
@@ -84,8 +87,14 @@ export function useHostRoom() {
       clearScreenToken();
       setRoom({ status: 'closed' });
     });
+    // Socket.IO keeps retrying on its own, so stay on "waking up" for a while first
+    const startedAt = Date.now();
     socket.on('connect_error', () =>
-      setRoom({ status: 'error', message: `Can't reach the server at ${API_URL}` }),
+      setRoom((prev) =>
+        prev.status === 'connecting' && Date.now() - startedAt < WAKE_UP_MS
+          ? { status: 'connecting', waking: true }
+          : { status: 'error', message: `Can't reach the server at ${API_URL}` },
+      ),
     );
 
     return () => {

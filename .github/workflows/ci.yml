@@ -19,9 +19,11 @@ env:
   TURBO_TELEMETRY_DISABLED: 1
 
 # Deployment settings (Settings → Secrets and variables → Actions):
-#   variables: API_URL (e.g. https://api.example.com), COOLIFY_URL, COOLIFY_APP_UUID
-#   secrets:   COOLIFY_TOKEN, VERCEL_TOKEN, VERCEL_ORG_ID,
-#              VERCEL_HOST_PROJECT_ID, VERCEL_CONTROLLER_PROJECT_ID
+#   variables: API_URL (e.g. https://api.example.com)
+#   secrets:   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_HOST_PROJECT_ID, VERCEL_CONTROLLER_PROJECT_ID
+# and one way to deploy the API:
+#   Render:  secret RENDER_DEPLOY_HOOK_URL (used when set)
+#   Coolify: variables COOLIFY_URL, COOLIFY_APP_UUID and secret COOLIFY_TOKEN
 
 jobs:
   verify:
@@ -119,22 +121,61 @@ jobs:
       - id: check
         env:
           API_URL: ${{ vars.API_URL }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           COOLIFY_URL: ${{ vars.COOLIFY_URL }}
           COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          api=$( [ -n "$API_URL" ] && [ -n "$COOLIFY_URL" ] && [ -n "$COOLIFY_APP_UUID" ] && [ -n "$COOLIFY_TOKEN" ] && echo true || echo false )
+          api=none
+          if [ -n "$API_URL" ] && [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            api=render
+          elif [ -n "$API_URL" ] && [ -n "$COOLIFY_URL" ] && [ -n "$COOLIFY_APP_UUID" ] && [ -n "$COOLIFY_TOKEN" ]; then
+            api=coolify
+          fi
           web=$( [ -n "$API_URL" ] && [ -n "$VERCEL_TOKEN" ] && echo true || echo false )
           echo "api=$api" >> "$GITHUB_OUTPUT"
           echo "web=$web" >> "$GITHUB_OUTPUT"
-          [ "$api" = true ] || echo "::notice::API_URL, COOLIFY_URL, COOLIFY_APP_UUID or COOLIFY_TOKEN is missing, skipping the API deploy"
+          [ "$api" != none ] || echo "::notice::API_URL plus RENDER_DEPLOY_HOOK_URL or the Coolify settings are missing, skipping the API deploy"
           [ "$web" = true ] || echo "::notice::API_URL or VERCEL_TOKEN is missing, skipping the web deploys"
+
+  deploy-api-render:
+    name: Deploy API (Render)
+    needs: [verify, browser-tests, docker, deploy-config]
+    if: needs.deploy-config.outputs.api == 'render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production-api
+      url: ${{ vars.API_URL }}
+    concurrency:
+      group: deploy-api
+      cancel-in-progress: false
+    env:
+      API_URL: ${{ vars.API_URL }}
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    steps:
+      # Render builds the image from apps/api/Dockerfile (see render.yaml). Its auto-deploy
+      # is off, so a deploy only happens once the tests passed.
+      - name: Trigger the deploy
+        run: curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL&ref=$GITHUB_SHA" > /dev/null
+
+      # /health reports the commit it runs, so wait until it is this one. The free plan
+      # also sleeps when idle, and the first request wakes it up.
+      - name: Wait until the new version is live
+        run: |
+          for _ in $(seq 1 120); do
+            commit=$(curl -sS --max-time 60 "$API_URL/health" | jq -r '.commit // empty' 2>/dev/null || true)
+            echo "Live commit: ${commit:-unknown}"
+            [ "$commit" = "$GITHUB_SHA" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Timed out waiting for Render to serve $GITHUB_SHA. See the deploy logs in Render."; exit 1
 
   deploy-api:
     name: Deploy API (Coolify)
     needs: [verify, browser-tests, docker, deploy-config]
-    if: needs.deploy-config.outputs.api == 'true'
+    if: needs.deploy-config.outputs.api == 'coolify'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
@@ -188,12 +229,13 @@ jobs:
 
   deploy-web:
     name: Deploy ${{ matrix.app }} to Vercel
-    needs: [verify, browser-tests, deploy-config, deploy-api]
+    needs: [verify, browser-tests, deploy-config, deploy-api, deploy-api-render]
     # Still deploy the web apps when the API deploy was skipped (not configured yet)
     if: |
       always() && needs.verify.result == 'success' && needs.browser-tests.result == 'success'
       && needs.deploy-config.outputs.web == 'true'
       && (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
+      && (needs.deploy-api-render.result == 'success' || needs.deploy-api-render.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
