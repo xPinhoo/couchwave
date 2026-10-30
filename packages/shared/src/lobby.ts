@@ -118,36 +118,6 @@ export const GAMES: readonly GameInfo[] = [
 /** The library opens by itself once this many players are in the lobby. */
 export const AUTO_LIBRARY_PLAYERS = 3;
 
-/** Indexes into `GAMES` of the games in a category, in library order. */
-export function gamesInCategory(category: GameCategoryId): number[] {
-  return GAMES.flatMap((game, index) => (game.category === category ? [index] : []));
-}
-
-/** Where a game sits in the library: its category's tab and its place within it. */
-export function libraryPosition(gameIndex: number) {
-  const category = GAMES[gameIndex]?.category ?? GAME_CATEGORIES[0].id;
-  const games = gamesInCategory(category);
-  return {
-    categoryIndex: GAME_CATEGORIES.findIndex((c) => c.id === category),
-    games,
-    gameIndex: Math.max(0, games.indexOf(gameIndex)),
-  };
-}
-
-/**
- * Moves the library highlight: along the games of the current category, or to the first game
- * of the previous or next category. Stops at the ends rather than wrapping around.
- */
-export function moveInLibrary(selected: number, axis: 'game' | 'category', delta: -1 | 1) {
-  const position = libraryPosition(selected);
-  if (axis === 'game') {
-    const target = position.games[position.gameIndex + delta];
-    return target ?? selected;
-  }
-  const category = GAME_CATEGORIES[position.categoryIndex + delta];
-  return category ? (gamesInCategory(category.id)[0] ?? selected) : selected;
-}
-
 export function gameInfo(id: GameId): GameInfo {
   const game = GAMES.find((g) => g.id === id);
   if (!game) throw new Error(`Unknown game ${id}`);

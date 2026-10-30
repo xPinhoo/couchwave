@@ -69,7 +69,7 @@ export default function App() {
             lobby={state.lobby}
             connected={state.connected}
             error={actionError}
-            onMove={(delta, axis) => void leader.moveLibrary(delta, axis)}
+            onMove={(direction) => void leader.moveLibrary(direction)}
             onSelect={() => void leader.selectGame()}
             onBack={() => void leader.closeLibrary()}
             onReact={react}

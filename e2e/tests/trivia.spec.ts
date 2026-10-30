@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { answer, joinPhone, openTv, tvChoices } from './support';
+import { answer, joinPhone, openTv, remote, tvChoices } from './support';
 
 test('a full game of trivia: library, setup, ready-up, questions, podium, play again', async ({
   browser,
@@ -11,23 +11,28 @@ test('a full game of trivia: library, setup, ready-up, questions, podium, play a
   // Library: the host browses with their phone, the TV follows
   await ana.getByRole('button', { name: 'Choose a game' }).click();
   await expect(tv.getByRole('heading', { name: 'Choose a game' })).toBeVisible();
-  // ▲ ▼ switch category, ◀ ▶ browse it, and the arrows stop at the ends
-  await expect(ana.getByRole('button', { name: 'Previous category' })).toBeDisabled();
-  await ana.getByRole('button', { name: 'Next category' }).click();
-  await expect(tv.getByRole('list', { name: 'Categories' })).toContainText('Creative');
-  await ana.getByRole('button', { name: 'Next game' }).click();
+  // Like a TV remote: the arrows move between tabs and cards and stop at the edges, and the
+  // tab only changes on OK
+  await expect(ana.getByRole('button', { name: 'Left', exact: true })).toBeDisabled();
+  await remote(ana, 'Up', 'Right');
+  await expect(tv.locator('.category-tabs .shown')).toHaveText(/Quiz/);
+  await remote(ana, 'OK');
+  await expect(tv.locator('.category-tabs .shown')).toHaveText(/Creative/);
+  await remote(ana, 'Down', 'Right');
   await expect(tv.getByRole('listitem').filter({ hasText: 'Bluff' })).toHaveAttribute(
     'aria-current',
     'true',
   );
-  await expect(ana.getByRole('button', { name: 'Play' })).toBeDisabled();
-  await expect(ana.getByRole('button', { name: 'Next game' })).toBeDisabled();
-  await ana.getByRole('button', { name: 'Previous category' }).click();
+  await expect(ana.getByRole('button', { name: 'OK', exact: true })).toBeDisabled();
+  await expect(ana.getByRole('button', { name: 'Right', exact: true })).toBeDisabled();
+  await remote(ana, 'Up', 'Left', 'OK');
+  await expect(tv.locator('.category-tabs .shown')).toHaveText(/Quiz/);
+  await remote(ana, 'Down');
   await expect(tv.getByRole('listitem').filter({ hasText: 'Quick-fire trivia' })).toHaveAttribute(
     'aria-current',
     'true',
   );
-  await ana.getByRole('button', { name: 'Play' }).click();
+  await remote(ana, 'OK');
 
   // Setup: settings appear live on the TV and on the other phone
   await ana.getByRole('radio', { name: '🌍 Geography' }).click();
@@ -84,7 +89,7 @@ test('the TV can refresh in the middle of a game', async ({ browser }) => {
   const ana = await joinPhone(browser, code, 'Ana', 'happy-bot');
 
   await ana.getByRole('button', { name: 'Choose a game' }).click();
-  await ana.getByRole('button', { name: 'Play' }).click();
+  await ana.getByRole('button', { name: 'OK', exact: true }).click();
   await ana.getByRole('button', { name: 'Confirm' }).click();
   await expect(tv.getByText(/Question 1\/3/)).toBeVisible();
 

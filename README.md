@@ -9,8 +9,9 @@ Expo, or straight from the browser) and play mini-games together in real time ov
 The TV only displays. The **first player to join becomes the room's host 👑** (called the
 _leader_ in the code, since "host" already names the TV app), shown on the TV with a gold ring and a
 crown. They open the games library whenever they like (it also opens by itself the first time a
-third player joins), browse it with their phone as a joystick (▲ ▼ between categories such as Quiz
-and Creative, ◀ ▶ between their games, then Play), end games and kick players. If they leave for
+third player joins) and browse it with their phone as a TV remote: the arrows move between the
+category tabs (Quiz, Creative) and a grid of game cards, stopping at the edges, and OK opens the
+focused tab or plays the focused game. They also end games and kick players. If they leave for
 good, the next player in join order takes over.
 
 Players pick a name and an avatar when they join: one of 19 drawn presets, or a

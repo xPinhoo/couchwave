@@ -3,20 +3,29 @@ import {
   addPlayer,
   createRoom,
   generateRoomCode,
-  moveGameSelection,
+  moveLibrary,
   openLibrary,
   openSetup,
   removePlayer,
   setPlayerConnected,
   setRoomStatus,
   setReady,
+  setLibraryCursor,
   setScreenConnected,
   setSetupOptions,
   shouldAutoOpenLibrary,
   type Player,
   type Room,
 } from '@couchwave/engine';
-import type { Avatar, ErrorCode, GameId, GameSetup, RoomStatus } from '@couchwave/shared';
+import type {
+  Avatar,
+  ErrorCode,
+  GameId,
+  GameSetup,
+  LibraryCursor,
+  LibraryDirection,
+  RoomStatus,
+} from '@couchwave/shared';
 import { Injectable } from '@nestjs/common';
 
 interface PlayerSession {
@@ -91,8 +100,12 @@ export class RoomsService {
     return this.update(code, (room) => setRoomStatus(room, status));
   }
 
-  moveGameSelection(code: string, delta: -1 | 1, axis: 'game' | 'category'): Room | undefined {
-    return this.update(code, (room) => moveGameSelection(room, delta, axis));
+  moveLibrary(code: string, direction: LibraryDirection): Room | undefined {
+    return this.update(code, (room) => moveLibrary(room, direction));
+  }
+
+  setLibraryCursor(code: string, cursor: LibraryCursor): Room | undefined {
+    return this.update(code, (room) => setLibraryCursor(room, cursor));
   }
 
   openLibrary(code: string): Room | undefined {

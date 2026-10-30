@@ -1,4 +1,4 @@
-import type { LobbyState, PublicPlayer } from '@couchwave/shared';
+import { INITIAL_LIBRARY_CURSOR, type LobbyState, type PublicPlayer } from '@couchwave/shared';
 
 export function player(id: string, name: string, overrides: Partial<PublicPlayer> = {}) {
   return {
@@ -19,7 +19,7 @@ export function lobbyState(overrides: Partial<LobbyState> = {}): LobbyState {
     players,
     leaderId: players[0]?.id ?? null,
     screenConnected: true,
-    selectedGame: 0,
+    library: INITIAL_LIBRARY_CURSOR,
     setup: null,
     ...overrides,
   };

@@ -1,8 +1,10 @@
 import {
   GAME_CATEGORIES,
   GAMES,
-  libraryPosition,
-  moveInLibrary,
+  focusedGame,
+  moveLibraryCursor,
+  pressLibraryOk,
+  type LibraryDirection,
   type LobbyState,
   type Reaction,
 } from '@couchwave/shared';
@@ -16,16 +18,16 @@ interface LibraryScreenProps {
   lobby: LobbyState;
   connected: boolean;
   error: string | null;
-  onMove: (delta: -1 | 1, axis: 'game' | 'category') => void;
+  onMove: (direction: LibraryDirection) => void;
   onSelect: () => void;
   onBack: () => void;
   onReact: (emoji: Reaction) => void;
 }
 
 /**
- * While the host picks a game on the TV, their phone is the joystick: ▲ ▼ switch category,
- * ◀ ▶ browse its games, Play picks one. Everyone else sees what's highlighted and can keep
- * sending reactions.
+ * While the host picks a game on the TV, their phone is the remote: the arrows move between
+ * the tabs and game cards, OK opens a tab or plays a game. Everyone else sees what's focused
+ * and can keep sending reactions.
  */
 export function LibraryScreen({
   playerId,
@@ -39,19 +41,22 @@ export function LibraryScreen({
 }: LibraryScreenProps) {
   const isLeader = lobby.leaderId === playerId;
   const leader = lobby.players.find((p) => p.id === lobby.leaderId);
-  const game = GAMES[lobby.selectedGame];
-  const position = libraryPosition(lobby.selectedGame);
-  const category = GAME_CATEGORIES[position.categoryIndex];
-  // The arrows stop at the ends, so each one is only enabled when it can move
-  const canMove = (axis: 'game' | 'category', delta: -1 | 1) =>
-    moveInLibrary(lobby.selectedGame, axis, delta) !== lobby.selectedGame;
+  const { focus } = lobby.library;
+  const tab = focus.area === 'tabs' ? GAME_CATEGORIES[focus.index] : undefined;
+  const game = GAMES[focusedGame(lobby.library) ?? -1];
 
-  const pad = (axis: 'game' | 'category', delta: -1 | 1, label: string, name: string) => (
+  // Buttons are only enabled when they would do something: no wrapping around at the edges
+  const canMove = (direction: LibraryDirection) =>
+    moveLibraryCursor(lobby.library, direction) !== lobby.library;
+  const ok = pressLibraryOk(lobby.library);
+  const canOk = ok.kind === 'tab' || (ok.kind === 'game' && !!GAMES[ok.gameIndex]?.available);
+
+  const arrow = (direction: LibraryDirection, label: string) => (
     <PadButton
       label={label}
-      accessibilityLabel={name}
-      disabled={!connected || !canMove(axis, delta)}
-      onPress={() => onMove(delta, axis)}
+      accessibilityLabel={direction[0]!.toUpperCase() + direction.slice(1)}
+      disabled={!connected || !canMove(direction)}
+      onPress={() => onMove(direction)}
     />
   );
 
@@ -59,34 +64,41 @@ export function LibraryScreen({
     <View style={styles.container}>
       <StatusBanner connected={connected} screenConnected={lobby.screenConnected} />
 
-      <Text style={styles.eyebrow}>
-        {category ? `${category.emoji} ${category.name}` : 'Games library'}
+      <Text style={styles.eyebrow}>{tab ? 'Category' : 'Choose a game'}</Text>
+      <Text style={styles.emoji}>{tab?.emoji ?? game?.emoji}</Text>
+      <Text style={styles.title}>{tab?.name ?? game?.name}</Text>
+      <Text style={styles.muted}>
+        {tab
+          ? ok.kind === 'tab'
+            ? 'Press OK to see these games'
+            : 'Showing these games'
+          : game?.available
+            ? game.description
+            : 'Coming soon'}
       </Text>
-      <Text style={styles.emoji}>{game?.emoji}</Text>
-      <Text style={styles.title}>{game?.name}</Text>
-      <Text style={styles.muted}>{game?.available ? game.description : 'Coming soon'}</Text>
 
       {isLeader ? (
         <>
           <View style={styles.pad}>
-            {pad('category', -1, '▲', 'Previous category')}
+            {arrow('up', '▲')}
             <View style={styles.padRow}>
-              {pad('game', -1, '◀', 'Previous game')}
+              {arrow('left', '◀')}
               <Pressable
                 accessibilityRole="button"
-                disabled={!connected || !game?.available}
+                accessibilityLabel="OK"
+                disabled={!connected || !canOk}
                 onPress={onSelect}
                 style={({ pressed }) => [
                   styles.select,
-                  (!connected || !game?.available) && styles.disabled,
+                  (!connected || !canOk) && styles.disabled,
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={styles.selectText}>Play</Text>
+                <Text style={styles.selectText}>OK</Text>
               </Pressable>
-              {pad('game', 1, '▶', 'Next game')}
+              {arrow('right', '▶')}
             </View>
-            {pad('category', 1, '▼', 'Next category')}
+            {arrow('down', '▼')}
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}>

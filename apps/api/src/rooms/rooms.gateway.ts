@@ -16,6 +16,7 @@ import {
   joinRoomSchema,
   kickPlayerSchema,
   libraryMoveSchema,
+  pressLibraryOk,
   reactSchema,
   readySchema,
   rejoinRoomSchema,
@@ -285,21 +286,24 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     const parsed = libraryMoveSchema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
 
-    this.broadcastLobby(
-      this.rooms.moveGameSelection(room.code, parsed.data.delta, parsed.data.axis),
-    );
+    this.broadcastLobby(this.rooms.moveLibrary(room.code, parsed.data.direction));
     return ok;
   }
 
+  /** OK on the remote: show the focused tab's games, or set up the focused game. */
   @SubscribeMessage('library:select')
   handleLibrarySelect(@ConnectedSocket() socket: GameSocket): Result<null> {
     const room = this.leaderRoom(socket);
     if (!room) return { ok: false, error: 'NOT_LEADER' };
     if (room.status !== 'library') return { ok: false, error: 'WRONG_PHASE' };
-    const game = GAMES[room.selectedGame];
-    if (!game?.available) return { ok: false, error: 'GAME_UNAVAILABLE' };
-
-    this.broadcastLobby(this.rooms.openSetup(room.code, game.id as GameId));
+    const pressed = pressLibraryOk(room.library);
+    if (pressed.kind === 'tab') {
+      this.broadcastLobby(this.rooms.setLibraryCursor(room.code, pressed.cursor));
+    } else if (pressed.kind === 'game') {
+      const game = GAMES[pressed.gameIndex];
+      if (!game?.available) return { ok: false, error: 'GAME_UNAVAILABLE' };
+      this.broadcastLobby(this.rooms.openSetup(room.code, game.id as GameId));
+    }
     return ok;
   }
 

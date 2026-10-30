@@ -5,12 +5,15 @@ import {
   DEFAULT_TRIVIA_OPTIONS,
   MAX_PLAYERS,
   ROOM_CODE_ALPHABET,
+  INITIAL_LIBRARY_CURSOR,
   ROOM_CODE_LENGTH,
-  moveInLibrary,
+  moveLibraryCursor,
   type Avatar,
   type ErrorCode,
   type GameId,
   type GameSetup,
+  type LibraryCursor,
+  type LibraryDirection,
   type LobbyState,
   type RoomStatus,
 } from '@couchwave/shared';
@@ -31,8 +34,8 @@ export interface Room {
   leaderId: string | null;
   /** Whether the TV screen that shows this room is currently connected. */
   screenConnected: boolean;
-  /** Index into `GAMES` of the game highlighted in the library. */
-  selectedGame: number;
+  /** Where the leader is in the games library; kept between games. */
+  library: LibraryCursor;
   /** Whether the library has been opened yet: it only opens by itself the first time. */
   libraryOpened: boolean;
   /** Settings and ready-up of the chosen game; kept after a game so the next one reuses them. */
@@ -60,7 +63,7 @@ export function createRoom(code: string, now: number): Room {
     players: [],
     leaderId: null,
     screenConnected: true,
-    selectedGame: 0,
+    library: INITIAL_LIBRARY_CURSOR,
     libraryOpened: false,
     setup: null,
     createdAt: now,
@@ -139,13 +142,13 @@ export function setRoomStatus(room: Room, status: RoomStatus): Room {
   return { ...room, status };
 }
 
-/** Moves the library highlight within a category or across categories; see `moveInLibrary`. */
-export function moveGameSelection(
-  room: Room,
-  delta: -1 | 1,
-  axis: 'game' | 'category' = 'game',
-): Room {
-  return { ...room, selectedGame: moveInLibrary(room.selectedGame, axis, delta) };
+/** Moves the library focus to the neighbouring tab or game; see `moveLibraryCursor`. */
+export function moveLibrary(room: Room, direction: LibraryDirection): Room {
+  return { ...room, library: moveLibraryCursor(room.library, direction) };
+}
+
+export function setLibraryCursor(room: Room, library: LibraryCursor): Room {
+  return { ...room, library };
 }
 
 /**
@@ -235,7 +238,7 @@ export function toLobbyState(room: Room): LobbyState {
     leaderId: room.leaderId,
     maxPlayers: MAX_PLAYERS,
     screenConnected: room.screenConnected,
-    selectedGame: room.selectedGame,
+    library: room.library,
     setup: room.setup,
   };
 }

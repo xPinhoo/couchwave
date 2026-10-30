@@ -1,5 +1,6 @@
 import type { DrawHostView, DrawOptions, DrawPlayerView, Stroke } from './draw.js';
 import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from './games.js';
+import type { LibraryCursor } from './library.js';
 import type { Avatar, Reaction } from './lobby.js';
 import type {
   AnswerPayload,
@@ -66,8 +67,8 @@ export interface LobbyState {
   maxPlayers: number;
   /** False while the TV screen is disconnected (e.g. it was refreshed). */
   screenConnected: boolean;
-  /** Index into `GAMES` of the highlighted game in the library. */
-  selectedGame: number;
+  /** Where the leader is in the games library: the tab shown and the focused tab or game. */
+  library: LibraryCursor;
   /** Set while status is 'setup' or 'playing'; the last settings are kept for the next round. */
   setup: GameSetup | null;
 }
@@ -108,9 +109,9 @@ export interface ClientToServerEvents {
   'room:react': (payload: ReactPayload, ack: (res: Result<null>) => void) => void;
   /** Leader only: lobby → games library. */
   'library:open': (ack: (res: Result<null>) => void) => void;
-  /** Leader only: move the highlight left or right. */
+  /** Leader only: move the focus to the neighbouring tab or game, like a TV remote. */
   'library:move': (payload: LibraryMovePayload, ack: (res: Result<null>) => void) => void;
-  /** Leader only: open the setup screen of the highlighted game. */
+  /** Leader only, OK: show the focused tab's games, or open the focused game's setup. */
   'library:select': (ack: (res: Result<null>) => void) => void;
   /** Leader only: games library → lobby (e.g. to wait for more players). */
   'library:close': (ack: (res: Result<null>) => void) => void;

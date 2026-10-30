@@ -1,6 +1,9 @@
 import type { AddressInfo } from 'node:net';
 import {
   GAMES,
+  INITIAL_LIBRARY_CURSOR,
+  focusedGame,
+  type LibraryDirection,
   type ClientToServerEvents,
   type DrawHostView,
   type DrawPlayerView,
@@ -89,6 +92,17 @@ describe('Rooms (e2e)', () => {
       expect(await player.emitWithAck('setup:ready', { ready: true })).toEqual(ok);
     }
     expect(await leader.emitWithAck('setup:ready', { ready: true })).toEqual(ok);
+  }
+
+  /** Presses buttons on the leader's remote in the games library, one after the other. */
+  async function remote(leader: Client, ...buttons: (LibraryDirection | 'ok')[]) {
+    for (const button of buttons) {
+      const res =
+        button === 'ok'
+          ? await leader.emitWithAck('library:select')
+          : await leader.emitWithAck('library:move', { direction: button });
+      expect(res).toEqual({ ok: true, data: null });
+    }
   }
 
   const next = <E extends keyof ServerToClientEvents>(client: Client, event: E) =>
@@ -262,7 +276,7 @@ describe('Rooms (e2e)', () => {
         ok: false,
         error: 'NOT_LEADER',
       });
-      expect(await ana.client.emitWithAck('library:move', { delta: 1 })).toEqual({
+      expect(await ana.client.emitWithAck('library:move', { direction: 'up' })).toEqual({
         ok: false,
         error: 'WRONG_PHASE',
       });
@@ -270,12 +284,22 @@ describe('Rooms (e2e)', () => {
       const opened = next(host, 'lobby:update');
       const ruiSeesOpen = next(rui.client, 'lobby:update');
       await ana.client.emitWithAck('library:open');
-      expect(await opened).toMatchObject({ status: 'library', selectedGame: 0 });
+      expect(await opened).toMatchObject({ status: 'library', library: INITIAL_LIBRARY_CURSOR });
       await ruiSeesOpen; // the broadcast can land after Ana's ack
 
+      // Up to the tabs, right to Creative: it is focused, but only shown after OK
+      const up = next(rui.client, 'lobby:update');
+      await remote(ana.client, 'up');
+      await up;
+      const focused = next(rui.client, 'lobby:update');
+      await remote(ana.client, 'right');
+      expect((await focused).library).toEqual({ category: 0, focus: { area: 'tabs', index: 1 } });
+      const shown = next(rui.client, 'lobby:update');
+      await remote(ana.client, 'ok');
+      expect((await shown).library.category).toBe(1);
       const moved = next(rui.client, 'lobby:update');
-      await ana.client.emitWithAck('library:move', { delta: 1, axis: 'category' });
-      expect(GAMES[(await moved).selectedGame]?.id).toBe('draw');
+      await remote(ana.client, 'down');
+      expect(GAMES[focusedGame((await moved).library)!]?.id).toBe('draw');
 
       const closed = next(host, 'lobby:update');
       expect(await ana.client.emitWithAck('library:close')).toEqual({ ok: true, data: null });
@@ -306,11 +330,11 @@ describe('Rooms (e2e)', () => {
       const { roomCode } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       await ana.client.emitWithAck('library:open');
-      await ana.client.emitWithAck('library:move', { delta: 1, axis: 'category' });
+      await remote(ana.client, 'up', 'right', 'ok', 'down');
       const moved = next(ana.client, 'lobby:update');
-      await ana.client.emitWithAck('library:move', { delta: 1 });
+      await remote(ana.client, 'right');
 
-      const bluff = GAMES[(await moved).selectedGame];
+      const bluff = GAMES[focusedGame((await moved).library)!];
       expect(bluff?.id).toBe('bluff');
       expect(bluff?.available).toBe(false);
       expect(await ana.client.emitWithAck('library:select')).toEqual({
@@ -741,7 +765,7 @@ describe('Rooms (e2e)', () => {
       const ana = await joinAs(roomCode, 'Ana');
       const rui = await joinAs(roomCode, 'Rui');
       await ana.client.emitWithAck('library:open');
-      await ana.client.emitWithAck('library:move', { delta: 1, axis: 'category' });
+      await remote(ana.client, 'up', 'right', 'ok', 'down');
       const opened = next(host, 'lobby:update');
       expect(await ana.client.emitWithAck('library:select')).toEqual(ok);
       return { host, roomCode, screenToken, ana, rui, lobby: await opened };

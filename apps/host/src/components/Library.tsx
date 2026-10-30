@@ -1,7 +1,8 @@
 import {
   GAME_CATEGORIES,
   GAMES,
-  libraryPosition,
+  focusedGame,
+  gamesInCategory,
   type LobbyState,
   type PublicPlayer,
 } from '@couchwave/shared';
@@ -14,12 +15,14 @@ interface LibraryProps {
 }
 
 /**
- * The games menu, one category tab at a time. The leader moves the highlight and picks a game
- * from their phone.
+ * The games menu, one category tab at a time. Every tab and game card is a position the leader
+ * moves between with their phone, like a TV remote: OK on a tab shows its games, OK on a game
+ * picks it.
  */
 export function Library({ lobby }: LibraryProps) {
   const leader = lobby.players.find((p) => p.id === lobby.leaderId);
-  const position = libraryPosition(lobby.selectedGame);
+  const { category, focus } = lobby.library;
+  const focused = focusedGame(lobby.library);
 
   return (
     <main className="library">
@@ -37,21 +40,26 @@ export function Library({ lobby }: LibraryProps) {
         <h1>Choose a game</h1>
 
         <ul className="category-tabs" aria-label="Categories">
-          {GAME_CATEGORIES.map((category, i) => (
-            <li
-              key={category.id}
-              className={i === position.categoryIndex ? 'selected' : undefined}
-              aria-current={i === position.categoryIndex ? 'true' : undefined}
-            >
-              <span aria-hidden="true">{category.emoji}</span> {category.name}
-            </li>
-          ))}
+          {GAME_CATEGORIES.map((tab, i) => {
+            const isFocused = focus.area === 'tabs' && focus.index === i;
+            return (
+              <li
+                key={tab.id}
+                className={[i === category && 'shown', isFocused && 'focused']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-current={isFocused ? 'true' : undefined}
+              >
+                <span aria-hidden="true">{tab.emoji}</span> {tab.name}
+              </li>
+            );
+          })}
         </ul>
 
         <ol className="game-cards" aria-label="Games">
-          {position.games.map((index) => {
+          {gamesInCategory(category).map((index) => {
             const game = GAMES[index]!;
-            const selected = index === lobby.selectedGame;
+            const selected = index === focused;
             return (
               <li
                 key={game.id}
@@ -75,7 +83,7 @@ export function Library({ lobby }: LibraryProps) {
       <footer className="library-footer">
         <p className="hint">
           {leader
-            ? `${leader.name} is choosing on their phone… ▲ ▼ for categories, ◀ ▶ for games, then Play`
+            ? `${leader.name} is choosing on their phone… arrows to move, OK to open a tab or play`
             : ''}
         </p>
       </footer>

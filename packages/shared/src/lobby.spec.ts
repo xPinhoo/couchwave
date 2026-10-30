@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AVATAR_ART } from './avatar-art.js';
-import {
-  AVATAR_PRESETS,
-  GAMES,
-  avatarArtUrl,
-  libraryPosition,
-  moveInLibrary,
-  presetAvatar,
-} from './lobby.js';
+import { AVATAR_PRESETS, avatarArtUrl, presetAvatar } from './lobby.js';
 
 describe('avatar presets', () => {
   it('have unique ids', () => {
@@ -36,24 +29,5 @@ describe('avatar presets', () => {
 
   it('shows unknown ids, like removed presets, as the anonymous silhouette', () => {
     expect(presetAvatar('fox').id).toBe('anonymous');
-  });
-});
-
-describe('moving in the library', () => {
-  const at = (id: string) => GAMES.findIndex((game) => game.id === id);
-
-  it('knows which tab and which card a game is', () => {
-    expect(libraryPosition(at('bluff'))).toEqual({
-      categoryIndex: 1,
-      games: [at('draw'), at('bluff')],
-      gameIndex: 1,
-    });
-  });
-
-  it('stops at the ends instead of wrapping around', () => {
-    expect(moveInLibrary(at('trivia'), 'game', 1)).toBe(at('trivia'));
-    expect(moveInLibrary(at('trivia'), 'category', -1)).toBe(at('trivia'));
-    expect(moveInLibrary(at('trivia'), 'category', 1)).toBe(at('draw'));
-    expect(moveInLibrary(at('draw'), 'game', 1)).toBe(at('bluff'));
   });
 });

@@ -1,8 +1,8 @@
 import {
   AUTO_LIBRARY_PLAYERS,
+  INITIAL_LIBRARY_CURSOR,
   DEFAULT_DRAW_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
-  GAMES,
   MAX_PLAYERS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -15,7 +15,7 @@ import {
   everyoneReady,
   generateRoomCode,
   isLeader,
-  moveGameSelection,
+  moveLibrary,
   openLibrary,
   openSetup,
   removePlayer,
@@ -205,25 +205,13 @@ describe('game setup', () => {
   });
 });
 
-describe('moveGameSelection', () => {
-  const at = (id: string) => GAMES.findIndex((game) => game.id === id);
-  const selected = (room: { selectedGame: number }) => GAMES[room.selectedGame]?.id;
-
-  it('browses the games of a category with ◀ ▶, stopping at the ends', () => {
-    const room = { ...createRoom('ABCD', 0), selectedGame: at('draw') };
-    expect(selected(moveGameSelection(room, 1))).toBe('bluff');
-    expect(selected(moveGameSelection(room, -1))).toBe('draw');
-    expect(selected(moveGameSelection({ ...room, selectedGame: at('bluff') }, 1))).toBe('bluff');
-  });
-
-  it('switches category with ▲ ▼, landing on its first game, stopping at the ends', () => {
+describe('moveLibrary', () => {
+  it('starts on the first game of the first tab and moves like a TV remote', () => {
     const room = createRoom('ABCD', 0);
-    expect(selected(room)).toBe('trivia');
-    expect(selected(moveGameSelection(room, 1, 'category'))).toBe('draw');
-    expect(selected(moveGameSelection(room, -1, 'category'))).toBe('trivia');
-    const bluff = { ...room, selectedGame: at('bluff') };
-    expect(selected(moveGameSelection(bluff, -1, 'category'))).toBe('trivia');
-    expect(selected(moveGameSelection(bluff, 1, 'category'))).toBe('bluff');
+    expect(room.library).toEqual(INITIAL_LIBRARY_CURSOR);
+    expect(moveLibrary(room, 'up').library.focus).toEqual({ area: 'tabs', index: 0 });
+    // Nothing to the left of the first game: the focus stays put
+    expect(moveLibrary(room, 'left').library).toBe(room.library);
   });
 });
 
@@ -269,7 +257,7 @@ describe('toLobbyState', () => {
       leaderId: 'Ana',
       maxPlayers: MAX_PLAYERS,
       screenConnected: true,
-      selectedGame: 0,
+      library: INITIAL_LIBRARY_CURSOR,
       setup: null,
     });
   });

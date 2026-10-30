@@ -568,12 +568,24 @@ a {
   font-weight: 700;
   transition:
     background 200ms,
-    color 200ms;
+    color 200ms,
+    box-shadow 200ms,
+    transform 200ms;
 }
 
-.category-tabs li.selected {
+/* The tab whose games are shown */
+.category-tabs li.shown {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   color: var(--text);
+}
+
+/* The remote's focus is on a tab: OK would show its games */
+.category-tabs li.focused {
+  color: var(--text);
+  box-shadow:
+    0 0 0 3px var(--text),
+    0 0 24px #ff5ca866;
+  transform: scale(1.06);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -583,13 +595,15 @@ a {
   }
 }
 
-/* A category has few games: keep the cards card-sized and centred rather than stretched */
+/* Card-sized cards, at most three per row (LIBRARY_COLUMNS, so ▲ ▼ move between rows), each
+   row centred */
 .game-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 24rem));
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   width: 100%;
+  max-width: calc(3 * 22rem + 2 * 1.5rem);
   gap: 1.5rem;
   margin: 0;
   padding: 0;
@@ -598,6 +612,7 @@ a {
 
 .game-card {
   position: relative;
+  width: 22rem;
   display: grid;
   justify-items: center;
   gap: 0.5rem;

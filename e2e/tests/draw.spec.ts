@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { joinPhone, openTv } from './support';
+import { joinPhone, openTv, remote } from './support';
 
 /** The artist picks their first word; returns it. */
 async function chooseFirstWord(artist: Page) {
@@ -29,13 +29,15 @@ async function guess(phone: Page, text: string) {
 /** Ana (the host) picks Draw & Guess with 45s to draw; both players get ready. */
 async function startDraw(ana: Page, rui: Page, tv: Page) {
   await ana.getByRole('button', { name: 'Choose a game' }).click();
-  // Draw & Guess opens the Creative category, one ▼ down from Quiz
-  await ana.getByRole('button', { name: 'Next category' }).click();
+  // Draw & Guess is the first game of the Creative tab: up to the tabs, right, OK, down, OK
+  await remote(ana, 'Up', 'Right', 'OK');
+  await expect(tv.locator('.category-tabs .shown')).toHaveText(/Creative/);
+  await remote(ana, 'Down');
   await expect(tv.getByRole('listitem').filter({ hasText: 'Draw & Guess' })).toHaveAttribute(
     'aria-current',
     'true',
   );
-  await ana.getByRole('button', { name: 'Play' }).click();
+  await remote(ana, 'OK');
 
   await expect(tv.getByRole('heading', { name: /Draw & Guess/ })).toBeVisible();
   await ana.getByRole('radio', { name: '45s' }).click();

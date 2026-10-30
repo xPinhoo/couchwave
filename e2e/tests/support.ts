@@ -40,3 +40,16 @@ export function tvChoices(tv: Page) {
 export async function answer(phone: Page, choice: string) {
   await phone.getByRole('button', { name: choice, exact: true }).click();
 }
+
+/**
+ * Presses buttons on the host's phone remote in the games library ('Up', 'Down', 'Left',
+ * 'Right', 'OK'), one at a time: each press changes what the phone shows, so wait for that
+ * before the next one, or it could act on the old position.
+ */
+export async function remote(phone: Page, ...buttons: ('Up' | 'Down' | 'Left' | 'Right' | 'OK')[]) {
+  for (const button of buttons) {
+    const before = await phone.locator('body').innerText();
+    await phone.getByRole('button', { name: button, exact: true }).click();
+    await expect.poll(() => phone.locator('body').innerText()).not.toBe(before);
+  }
+}
