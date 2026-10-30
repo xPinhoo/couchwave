@@ -32,7 +32,12 @@ export function DrawingPad({ color, size, onStroke, ref }: DrawingPadProps) {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    if (fresh) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (fresh) {
+      // Paint the white into the pixels: a browser's forced dark mode can darken a CSS
+      // background, which left black ink on a black pad
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     paintStrokes(ctx, items, canvas.width, canvas.height);
   }, []);
 
