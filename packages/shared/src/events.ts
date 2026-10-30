@@ -1,6 +1,7 @@
 import type { DrawHostView, DrawOptions, DrawPlayerView, Stroke } from './draw.js';
 import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from './games.js';
 import type { LibraryCursor } from './library.js';
+import type { PhoneHostView, PhoneOptions, PhonePlayerView, SketchOp } from './phone.js';
 import type { Avatar, Reaction } from './lobby.js';
 import type {
   AnswerPayload,
@@ -9,6 +10,8 @@ import type {
   JoinRoomPayload,
   KickPlayerPayload,
   LibraryMovePayload,
+  PhoneDonePayload,
+  PhoneTextPayload,
   ReactPayload,
   ReadyPayload,
   RejoinRoomPayload,
@@ -50,13 +53,14 @@ export type RoomStatus = 'lobby' | 'library' | 'setup' | 'playing';
 /** The pre-game screen: the host's settings for the chosen game and who has pressed Ready. */
 export type GameSetup =
   | { gameId: 'trivia'; options: TriviaOptions; readyIds: string[] }
-  | { gameId: 'draw'; options: DrawOptions; readyIds: string[] };
+  | { gameId: 'draw'; options: DrawOptions; readyIds: string[] }
+  | { gameId: 'phone'; options: PhoneOptions; readyIds: string[] };
 
 /** What the TV shows during a game. */
-export type HostView = TriviaHostView | DrawHostView;
+export type HostView = TriviaHostView | DrawHostView | PhoneHostView;
 
 /** What one phone shows during a game. */
-export type PlayerView = TriviaPlayerView | DrawPlayerView;
+export type PlayerView = TriviaPlayerView | DrawPlayerView | PhonePlayerView;
 
 export interface LobbyState {
   roomCode: string;
@@ -116,7 +120,7 @@ export interface ClientToServerEvents {
   /** Leader only: games library → lobby (e.g. to wait for more players). */
   'library:close': (ack: (res: Result<null>) => void) => void;
   /** Leader only, during setup: change the settings (this un-readies the leader). */
-  'setup:options': (payload: TriviaOptions | DrawOptions, ack: (res: Result<null>) => void) => void;
+  'setup:options': (payload: GameSetup['options'], ack: (res: Result<null>) => void) => void;
   /**
    * Any player, during setup. For the leader, ready means "settings confirmed". The game
    * starts as soon as every connected player is ready.
@@ -141,6 +145,21 @@ export interface ClientToServerEvents {
   'draw:clear': () => void;
   /** Draw & Guess, everyone but the artist while drawing. Feedback arrives in the player view. */
   'draw:guess': (payload: GuessPayload, ack: (res: Result<null>) => void) => void;
+  /**
+   * Drawing Phone, while writing or guessing: the text so far. Fire and forget, sent as the
+   * player types, so whatever is there when time runs out counts.
+   */
+  'phone:text': (payload: PhoneTextPayload) => void;
+  /** Drawing Phone, while writing: a random phrase, which also becomes the draft. */
+  'phone:random': (ack: (res: Result<{ text: string }>) => void) => void;
+  /** Drawing Phone, while drawing: one finished action on the canvas. Fire and forget. */
+  'phone:op': (op: SketchOp) => void;
+  'phone:undo': () => void;
+  'phone:redo': () => void;
+  /** Drawing Phone: finished this step (or not, to change it). Everyone done skips ahead. */
+  'phone:done': (payload: PhoneDonePayload, ack: (res: Result<null>) => void) => void;
+  /** Drawing Phone, leader only, during the reveal: show the next link now. */
+  'phone:next': (ack: (res: Result<null>) => void) => void;
 }
 
 /** Events broadcast by the server. */

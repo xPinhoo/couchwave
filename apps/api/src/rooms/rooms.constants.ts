@@ -29,5 +29,9 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
 /** How long the artist has to pick a word in Draw & Guess. */
 export const DRAW_CHOOSE_SECONDS = 15;
 
+/** Drawing Phone: time to write the first phrase, and to guess a drawing. */
+export const PHONE_WRITE_SECONDS = 45;
+export const PHONE_GUESS_SECONDS = 40;
+
 /** How often running games are checked for expired timers. */
 export const GAME_TICK_MS = 250;

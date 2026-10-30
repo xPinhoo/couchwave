@@ -25,7 +25,8 @@ describe('Library', () => {
     expect(cards).toHaveLength(gamesInCategory(1).length);
     expect(cards[0]).toHaveTextContent('Draw & Guess');
     expect(cards[1]).toHaveAttribute('aria-current', 'true');
-    expect(cards[1]).toHaveTextContent('Coming soon');
+    expect(cards[1]).toHaveTextContent('Drawing Phone');
+    expect(cards[2]).toHaveTextContent('Coming soon');
     expect(cards[0]).not.toHaveTextContent('Coming soon');
   });
 

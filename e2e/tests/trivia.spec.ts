@@ -18,7 +18,7 @@ test('a full game of trivia: library, setup, ready-up, questions, podium, play a
   await expect(tv.locator('.category-tabs .shown')).toHaveText(/Quiz/);
   await remote(ana, 'OK');
   await expect(tv.locator('.category-tabs .shown')).toHaveText(/Creative/);
-  await remote(ana, 'Down', 'Right');
+  await remote(ana, 'Down', 'Right', 'Right');
   await expect(tv.getByRole('listitem').filter({ hasText: 'Bluff' })).toHaveAttribute(
     'aria-current',
     'true',

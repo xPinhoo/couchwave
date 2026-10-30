@@ -7,13 +7,14 @@ import { DrawScreen } from './src/screens/DrawScreen';
 import { JoinScreen } from './src/screens/JoinScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { LobbyScreen } from './src/screens/LobbyScreen';
+import { PhoneScreen } from './src/screens/PhoneScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { TriviaScreen } from './src/screens/TriviaScreen';
 import { colors } from './src/theme';
 import { isGame, useController } from './src/useController';
 
 export default function App() {
-  const { state, game, actionError, join, answer, drawing, react, setReady, leader, reset } =
+  const { state, game, actionError, join, answer, drawing, phone, react, setReady, leader, reset } =
     useController();
 
   return (
@@ -42,6 +43,16 @@ export default function App() {
                 connected={state.connected}
                 isLeader={state.lobby.leaderId === state.playerId}
                 actions={drawing}
+                onEnd={() => void leader.endGame()}
+                onPlayAgain={() => void leader.playAgain()}
+              />
+            ) : isGame(game, 'phone') ? (
+              <PhoneScreen
+                game={game}
+                connected={state.connected}
+                isLeader={state.lobby.leaderId === state.playerId}
+                actions={phone}
+                onNext={() => void leader.nextReveal()}
                 onEnd={() => void leader.endGame()}
                 onPlayAgain={() => void leader.playAgain()}
               />

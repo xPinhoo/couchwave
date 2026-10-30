@@ -17,6 +17,17 @@ import {
   TRIVIA_TOPICS,
   type TriviaTopic,
 } from './games.js';
+import {
+  ERASER_SIZES,
+  PEN_SIZES,
+  PHONE_LANGUAGES,
+  PHONE_SECONDS_OPTIONS,
+  PHRASE_MAX_LENGTH,
+  SKETCH_COLORS,
+  SKETCH_OP_POINTS_MAX,
+  SKETCH_SHAPES,
+  type PhoneLanguage,
+} from './phone.js';
 import { AVATAR_PHOTO_MAX_CHARS, AVATAR_PRESETS, REACTIONS } from './lobby.js';
 
 export const roomCodeSchema = z
@@ -154,3 +165,61 @@ export const guessSchema = z.object({
 });
 
 export type GuessPayload = z.input<typeof guessSchema>;
+
+const languageIds = PHONE_LANGUAGES.map((language) => language.id) as [
+  PhoneLanguage,
+  ...PhoneLanguage[],
+];
+
+export const phoneOptionsSchema = z.object({
+  secondsToDraw: oneOf(PHONE_SECONDS_OPTIONS),
+  language: z.enum(languageIds),
+});
+
+export const phoneTextSchema = z.object({
+  // Not trimmed: this is a draft, sent as the player types
+  text: z.string().max(PHRASE_MAX_LENGTH),
+});
+
+export type PhoneTextPayload = z.input<typeof phoneTextSchema>;
+
+const index = (length: number) =>
+  z
+    .number()
+    .int()
+    .min(0)
+    .max(length - 1);
+const coords = (min: number, max: number) =>
+  z
+    .array(z.number().int().min(0).max(DRAW_COORD_MAX))
+    .min(min)
+    .max(max)
+    .refine((points) => points.length % 2 === 0, 'Points come in x, y pairs');
+
+export const sketchOpSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('pen'),
+    color: index(SKETCH_COLORS.length),
+    size: index(PEN_SIZES.length),
+    points: coords(2, SKETCH_OP_POINTS_MAX),
+  }),
+  z.object({
+    kind: z.literal('erase'),
+    size: index(ERASER_SIZES.length),
+    points: coords(2, SKETCH_OP_POINTS_MAX),
+  }),
+  z.object({
+    kind: z.enum(SKETCH_SHAPES),
+    color: index(SKETCH_COLORS.length),
+    size: index(PEN_SIZES.length),
+    points: coords(4, 4),
+  }),
+  z.object({ kind: z.literal('fill'), color: index(SKETCH_COLORS.length), points: coords(2, 2) }),
+  z.object({ kind: z.literal('clear') }),
+]);
+
+export const phoneDoneSchema = z.object({
+  done: z.boolean(),
+});
+
+export type PhoneDonePayload = z.input<typeof phoneDoneSchema>;

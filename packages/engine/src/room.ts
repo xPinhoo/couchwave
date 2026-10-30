@@ -2,6 +2,7 @@ import {
   AUTO_LIBRARY_PLAYERS,
   AVATAR_PRESETS,
   DEFAULT_DRAW_OPTIONS,
+  DEFAULT_PHONE_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
   MAX_PLAYERS,
   ROOM_CODE_ALPHABET,
@@ -175,7 +176,9 @@ export function openSetup(room: Room, gameId: GameId): Room {
       ? { ...room.setup, readyIds: [] }
       : gameId === 'draw'
         ? { gameId, options: DEFAULT_DRAW_OPTIONS, readyIds: [] }
-        : { gameId, options: DEFAULT_TRIVIA_OPTIONS, readyIds: [] };
+        : gameId === 'phone'
+          ? { gameId, options: DEFAULT_PHONE_OPTIONS, readyIds: [] }
+          : { gameId, options: DEFAULT_TRIVIA_OPTIONS, readyIds: [] };
   return { ...room, status: 'setup', setup };
 }
 

@@ -1,14 +1,18 @@
 import {
   DRAW_ROUNDS_OPTIONS,
   DRAW_SECONDS_OPTIONS,
+  PHONE_LANGUAGES,
+  PHONE_SECONDS_OPTIONS,
   TRIVIA_LENGTH_OPTIONS,
   TRIVIA_SECONDS_OPTIONS,
   TRIVIA_TOPICS,
   gameInfo,
+  phoneLanguage,
   triviaTopic,
   type DrawOptions,
   type GameSetup,
   type LobbyState,
+  type PhoneOptions,
   type TriviaOptions,
 } from '@couchwave/shared';
 import type { ReactNode } from 'react';
@@ -22,7 +26,7 @@ interface SetupScreenProps {
   lobby: LobbyState;
   connected: boolean;
   error: string | null;
-  onOptions: (options: TriviaOptions | DrawOptions) => void;
+  onOptions: (options: GameSetup['options']) => void;
   onReady: (ready: boolean) => void;
   onCancel: () => void;
 }
@@ -62,8 +66,10 @@ export function SetupScreen({
 
           {setup.gameId === 'trivia' ? (
             <TriviaSettings options={setup.options} onChange={onOptions} />
-          ) : (
+          ) : setup.gameId === 'draw' ? (
             <DrawSettings options={setup.options} onChange={onOptions} />
+          ) : (
+            <PhoneSettings options={setup.options} onChange={onOptions} />
           )}
 
           <BigButton label="Confirm" disabled={!connected} onPress={() => onReady(true)} />
@@ -217,7 +223,54 @@ function DrawSettings({
   );
 }
 
+function PhoneSettings({
+  options,
+  onChange,
+}: {
+  options: PhoneOptions;
+  onChange: (options: PhoneOptions) => void;
+}) {
+  const set = (change: Partial<PhoneOptions>) => onChange({ ...options, ...change });
+  return (
+    <>
+      <Section label="Time to draw">
+        {PHONE_SECONDS_OPTIONS.map((seconds) => (
+          <Chip
+            key={seconds}
+            label={`${seconds}s`}
+            selected={options.secondsToDraw === seconds}
+            onPress={() => set({ secondsToDraw: seconds })}
+          />
+        ))}
+      </Section>
+      <Section label="Random phrases in">
+        {PHONE_LANGUAGES.map((language) => (
+          <Chip
+            key={language.id}
+            label={`${language.flag} ${language.name}`}
+            selected={options.language === language.id}
+            onPress={() => set({ language: language.id })}
+          />
+        ))}
+      </Section>
+    </>
+  );
+}
+
 function Summary({ setup }: { setup: GameSetup }) {
+  if (setup.gameId === 'phone') {
+    const { secondsToDraw, language } = setup.options;
+    const { flag, name } = phoneLanguage(language);
+    return (
+      <View style={styles.summary}>
+        <Text style={styles.summaryEmoji}>📞</Text>
+        <Text style={styles.title}>Drawing Phone</Text>
+        <Text style={styles.muted}>
+          {secondsToDraw}s to draw · {flag} {name}
+        </Text>
+      </View>
+    );
+  }
   if (setup.gameId === 'draw') {
     const { rounds, secondsToDraw } = setup.options;
     return (

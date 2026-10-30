@@ -1,4 +1,10 @@
-import { gameInfo, triviaTopic, type GameSetup, type LobbyState } from '@couchwave/shared';
+import {
+  gameInfo,
+  phoneLanguage,
+  triviaTopic,
+  type GameSetup,
+  type LobbyState,
+} from '@couchwave/shared';
 import { PlayerAvatar } from './PlayerAvatar';
 
 interface SetupScreenProps {
@@ -7,6 +13,13 @@ interface SetupScreenProps {
 
 /** The settings as label/value rows, for whichever game is being set up. */
 function settingRows(setup: GameSetup): { label: string; value: string }[] {
+  if (setup.gameId === 'phone') {
+    const { flag, name } = phoneLanguage(setup.options.language);
+    return [
+      { label: 'Time to draw', value: `${setup.options.secondsToDraw}s` },
+      { label: 'Random phrases', value: `${flag} ${name}` },
+    ];
+  }
   if (setup.gameId === 'draw') {
     const { secondsToDraw, rounds } = setup.options;
     return [

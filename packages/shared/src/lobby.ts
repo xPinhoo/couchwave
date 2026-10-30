@@ -64,7 +64,7 @@ export type Reaction = (typeof REACTIONS)[number];
 export const REACTION_COOLDOWN_MS = 300;
 
 /** The games that can be played (the library also lists some that are coming soon). */
-export type GameId = 'trivia' | 'draw';
+export type GameId = 'trivia' | 'draw' | 'phone';
 
 /** Library tabs: games grouped by how they play. */
 export const GAME_CATEGORIES = [
@@ -103,6 +103,15 @@ export const GAMES: readonly GameInfo[] = [
     category: 'creative',
     available: true,
     minPlayers: 2,
+  },
+  {
+    id: 'phone',
+    name: 'Drawing Phone',
+    emoji: '📞',
+    description: 'Write a phrase, draw it, guess it, and watch it fall apart.',
+    category: 'creative',
+    available: true,
+    minPlayers: 3,
   },
   {
     id: 'bluff',

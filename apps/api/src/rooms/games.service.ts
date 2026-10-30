@@ -1,39 +1,65 @@
 import {
   DRAW_WORDS,
+  PHONE_PHRASES,
   QUESTION_BANKS,
   draw,
+  phone,
   pickQuestions,
+  planChains,
   planTurns,
+  shuffle,
   trivia,
   type DrawState,
+  type PhoneInput,
+  type PhoneState,
   type TriviaState,
 } from '@couchwave/engine';
 import type { GameSetup, HostView, PlayerView, Stroke } from '@couchwave/shared';
 import { Inject, Injectable } from '@nestjs/common';
-import { DRAW_CHOOSE_SECONDS, GAME_CONFIG, type GameConfig } from './rooms.constants.js';
+import {
+  DRAW_CHOOSE_SECONDS,
+  GAME_CONFIG,
+  PHONE_GUESS_SECONDS,
+  PHONE_WRITE_SECONDS,
+  type GameConfig,
+} from './rooms.constants.js';
 
 /** A game in progress. Draw & Guess also keeps the drawing of the current turn. */
 export type RunningGame =
   | { id: 'trivia'; state: TriviaState }
-  | { id: 'draw'; state: DrawState; strokes: Stroke[]; pointCount: number };
+  | { id: 'draw'; state: DrawState; strokes: Stroke[]; pointCount: number }
+  | { id: 'phone'; state: PhoneState };
 
 /** Caps on one turn's drawing, so a misbehaving client can't fill the server's memory. */
 export const MAX_STROKES_PER_TURN = 2_000;
 export const MAX_POINTS_PER_TURN = 100_000;
 
-export const hostView = (game: RunningGame): HostView =>
-  game.id === 'trivia' ? trivia.hostView(game.state) : draw.hostView(game.state);
+export function hostView(game: RunningGame): HostView {
+  switch (game.id) {
+    case 'trivia':
+      return trivia.hostView(game.state);
+    case 'draw':
+      return draw.hostView(game.state);
+    case 'phone':
+      return phone.hostView(game.state);
+  }
+}
 
-export const playerView = (game: RunningGame, playerId: string): PlayerView =>
-  game.id === 'trivia'
-    ? trivia.playerView(game.state, playerId)
-    : draw.playerView(game.state, playerId);
+export function playerView(game: RunningGame, playerId: string): PlayerView {
+  switch (game.id) {
+    case 'trivia':
+      return trivia.playerView(game.state, playerId);
+    case 'draw':
+      return draw.playerView(game.state, playerId);
+    case 'phone':
+      return phone.playerView(game.state, playerId);
+  }
+}
 
-export const isOver = (game: RunningGame): boolean =>
-  game.id === 'trivia' ? trivia.isOver(game.state) : draw.isOver(game.state);
+export const isOver = (game: RunningGame): boolean => game.state.phase === 'finished';
 
 export const minPlayers = (gameId: GameSetup['gameId']): number =>
-  gameId === 'trivia' ? trivia.minPlayers : draw.minPlayers;
+  ({ trivia, draw, phone })[gameId].minPlayers;
 
 /**
  * Holds the running game of each room. Methods that change a game return it only when
@@ -66,6 +92,21 @@ export class GamesService {
         now,
       );
       game = { id: 'trivia', state };
+    } else if (setup.gameId === 'phone') {
+      const { secondsToDraw, language } = setup.options;
+      const state = phone.init(
+        playerIds,
+        {
+          order: planChains(playerIds, this.random),
+          phrases: shuffle(PHONE_PHRASES[language], this.random),
+          writeMs: PHONE_WRITE_SECONDS * msPerSecond,
+          drawMs: secondsToDraw * msPerSecond,
+          guessMs: PHONE_GUESS_SECONDS * msPerSecond,
+          revealMs,
+        },
+        now,
+      );
+      game = { id: 'phone', state };
     } else {
       const { rounds, secondsToDraw } = setup.options;
       const state = draw.init(
@@ -112,12 +153,26 @@ export class GamesService {
     );
   }
 
-  tick(roomCode: string, now: number) {
+  /** Drawing Phone: anything a player does. Returns the game only when something changed. */
+  phoneInput(roomCode: string, playerId: string, input: PhoneInput, now: number) {
     return this.update(roomCode, (game) =>
-      game.id === 'trivia'
-        ? { ...game, state: trivia.onTick(game.state, now) }
-        : this.withDrawState(game, draw.onTick(game.state, now)),
+      game.id === 'phone'
+        ? { ...game, state: phone.onInput(game.state, playerId, input, now) }
+        : game,
     );
+  }
+
+  tick(roomCode: string, now: number) {
+    return this.update(roomCode, (game) => {
+      switch (game.id) {
+        case 'trivia':
+          return { ...game, state: trivia.onTick(game.state, now) };
+        case 'draw':
+          return this.withDrawState(game, draw.onTick(game.state, now));
+        case 'phone':
+          return { ...game, state: phone.onTick(game.state, now) };
+      }
+    });
   }
 
   /**

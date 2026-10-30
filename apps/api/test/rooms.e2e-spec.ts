@@ -8,6 +8,9 @@ import {
   type DrawHostView,
   type DrawPlayerView,
   type GameUpdate,
+  type PhoneHostView,
+  type PhonePlayerView,
+  type SketchOp,
   type ServerToClientEvents,
   type Stroke,
   type TriviaHostView,
@@ -330,7 +333,7 @@ describe('Rooms (e2e)', () => {
       const { roomCode } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       await ana.client.emitWithAck('library:open');
-      await remote(ana.client, 'up', 'right', 'ok', 'down');
+      await remote(ana.client, 'up', 'right', 'ok', 'down', 'right');
       const moved = next(ana.client, 'lobby:update');
       await remote(ana.client, 'right');
 
@@ -895,6 +898,120 @@ describe('Rooms (e2e)', () => {
       const res = await tv.emitWithAck('room:resume', { screenToken });
       expect(res.ok && res.data.lobby.roomCode).toBe(roomCode);
       expect(await synced).toEqual([{ ...stroke, points: [100, 100, 200, 250, 300, 300] }]);
+    });
+  });
+
+  describe('drawing phone', () => {
+    type HostUpdate = GameUpdate<PhoneHostView>;
+    type PlayerUpdate = GameUpdate<PhonePlayerView>;
+    const ok = { ok: true, data: null };
+    const dot: SketchOp = { kind: 'pen', color: 3, size: 1, points: [500, 500] };
+
+    const hostSees = (host: Client, match: (u: HostUpdate) => boolean) =>
+      waitFor<HostUpdate>(host, 'game:host', match);
+    const playerSees = (player: Client, match: (u: PlayerUpdate) => boolean) =>
+      waitFor<PlayerUpdate>(player, 'game:player', match);
+
+    /** Ana (the leader), Rui and Eva start Drawing Phone, the second Creative game. */
+    async function started() {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+      const eva = await joinAs(roomCode, 'Eva'); // the library opens by itself
+      await remote(ana.client, 'up', 'right', 'ok', 'down', 'right', 'ok');
+      expect(
+        await ana.client.emitWithAck('setup:options', { secondsToDraw: 30, language: 'pt' }),
+      ).toEqual(ok);
+      expect(
+        await ana.client.emitWithAck('setup:options', {
+          secondsToDraw: 45,
+          language: 'en',
+        } as never),
+      ).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
+
+      const writing = hostSees(host, (u) => u.view.phase === 'write');
+      for (const player of [rui, eva, ana]) {
+        await player.client.emitWithAck('setup:ready', { ready: true });
+      }
+      expect((await writing).view).toMatchObject({ step: 1, totalSteps: 3 });
+      return { host, players: [ana, rui, eva] };
+    }
+
+    it('plays a whole game: write, draw, guess, and the reveal on the TV', async () => {
+      const { host, players } = await started();
+      const [ana, rui, eva] = players;
+
+      // Ana asks for a random (Portuguese) phrase; the others type theirs
+      const random = await ana!.client.emitWithAck('phone:random');
+      expect(random.ok && random.data.text.length).toBeGreaterThan(0);
+      rui!.client.emit('phone:text', { text: 'A cat on a bus' });
+      eva!.client.emit('phone:text', { text: 'A dog on a plane' });
+
+      const oneDone = hostSees(host, (u) => u.view.doneIds.length === 1);
+      expect(await rui!.client.emitWithAck('phone:done', { done: true })).toEqual(ok);
+      expect((await oneDone).view.doneIds).toEqual([rui!.playerId]);
+
+      // Everyone done: straight on to drawing, each with someone else's phrase
+      const drawing = Promise.all(
+        players.map((p) => playerSees(p.client, (u) => u.view.phase === 'draw')),
+      );
+      await eva!.client.emitWithAck('phone:done', { done: true });
+      await ana!.client.emitWithAck('phone:done', { done: true });
+      const phrases = (await drawing).map((u) => u.view.phrase);
+      expect(new Set(phrases).size).toBe(3);
+      expect(phrases).toContain('A cat on a bus');
+
+      // Malformed actions are dropped; undo and redo keep the server's copy in step
+      for (const p of players) {
+        p.client.emit('phone:op', { kind: 'pen', color: 99, size: 0, points: [1, 2] } as never);
+        p.client.emit('phone:op', dot);
+        p.client.emit('phone:op', { kind: 'clear' });
+        p.client.emit('phone:undo');
+      }
+      const guessing = Promise.all(
+        players.map((p) => playerSees(p.client, (u) => u.view.phase === 'guess')),
+      );
+      for (const p of players) await p.client.emitWithAck('phone:done', { done: true });
+      for (const { view } of await guessing) expect(view.drawing).toEqual([dot]);
+
+      // Time runs out (40 "seconds"): Rui's half-typed guess still counts
+      rui!.client.emit('phone:text', { text: 'a red dot' });
+      const reveal = await hostSees(host, (u) => u.view.phase === 'reveal');
+      expect(reveal.view.reveal).toMatchObject({ chain: 0, entry: 0, entryCount: 3 });
+      expect(reveal.view.reveal?.current).toMatchObject({ kind: 'text', playerId: ana!.playerId });
+
+      // Only the leader can skip ahead
+      expect(await rui!.client.emitWithAck('phone:next')).toEqual({
+        ok: false,
+        error: 'NOT_LEADER',
+      });
+      const skipped = hostSees(host, (u) => u.view.reveal?.entry === 1);
+      expect(await ana!.client.emitWithAck('phone:next')).toEqual(ok);
+      expect((await skipped).view.reveal?.current).toMatchObject({ kind: 'sketch', ops: [dot] });
+
+      const finished = await hostSees(host, (u) => u.view.phase === 'finished');
+      const finals = finished.view.summaries.map((summary) => summary.final);
+      expect(finals).toContain('a red dot');
+      expect(finished.view.summaries.map((summary) => summary.original)).toContain(
+        'A dog on a plane',
+      );
+    }, 10_000);
+
+    it('gives a phone that comes back mid-step its draft', async () => {
+      const { players } = await started();
+      const [, rui] = players;
+      rui!.client.emit('phone:text', { text: 'half a thought' });
+      await sleep(50);
+      rui!.client.disconnect();
+
+      const phone = await connect();
+      const back = next(phone, 'game:player');
+      await phone.emitWithAck('room:rejoin', { sessionToken: rui!.sessionToken });
+      expect((await back).view).toMatchObject({
+        game: 'phone',
+        phase: 'write',
+        draft: 'half a thought',
+      });
     });
   });
 });

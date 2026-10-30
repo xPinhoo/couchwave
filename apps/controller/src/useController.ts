@@ -1,8 +1,8 @@
 import type {
   Avatar,
   ClientToServerEvents,
-  DrawOptions,
   ErrorCode,
+  GameSetup,
   GameUpdate,
   JoinedRoom,
   LibraryDirection,
@@ -10,8 +10,8 @@ import type {
   PlayerView,
   Reaction,
   ServerToClientEvents,
+  SketchOp,
   Stroke,
-  TriviaOptions,
 } from '@couchwave/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -190,6 +190,22 @@ export function useController() {
     [],
   );
 
+  /** Drawing Phone. Drafts and drawing actions are fire and forget; the server keeps them. */
+  const phone = useMemo(
+    () => ({
+      text: (text: string) => socketRef.current?.emit('phone:text', { text }),
+      random: async () => {
+        const res = await socketRef.current?.emitWithAck('phone:random');
+        return res?.ok ? res.data.text : null;
+      },
+      op: (op: SketchOp) => socketRef.current?.emit('phone:op', op),
+      undo: () => socketRef.current?.emit('phone:undo'),
+      redo: () => socketRef.current?.emit('phone:redo'),
+      done: (done: boolean) => void socketRef.current?.emitWithAck('phone:done', { done }),
+    }),
+    [],
+  );
+
   /** Runs a host-only action and surfaces its error, if any. */
   const leaderAction = useCallback(
     async (send: (socket: ControllerSocket) => Promise<{ ok: boolean; error?: ErrorCode }>) => {
@@ -209,8 +225,10 @@ export function useController() {
       moveLibrary: (direction: LibraryDirection) =>
         leaderAction((socket) => socket.emitWithAck('library:move', { direction })),
       selectGame: () => leaderAction((socket) => socket.emitWithAck('library:select')),
-      setOptions: (options: TriviaOptions | DrawOptions) =>
+      setOptions: (options: GameSetup['options']) =>
         leaderAction((socket) => socket.emitWithAck('setup:options', options)),
+      /** Drawing Phone: show the next part of the reveal now. */
+      nextReveal: () => leaderAction((socket) => socket.emitWithAck('phone:next')),
       cancelSetup: () => leaderAction((socket) => socket.emitWithAck('setup:cancel')),
       endGame: () => leaderAction((socket) => socket.emitWithAck('game:end')),
       /** Back to the setup screen of the same game; the server keeps the last settings. */
@@ -242,5 +260,17 @@ export function useController() {
     setState({ status: 'idle' });
   }, []);
 
-  return { state, game, actionError, join, answer, drawing, react, setReady, leader, reset };
+  return {
+    state,
+    game,
+    actionError,
+    join,
+    answer,
+    drawing,
+    phone,
+    react,
+    setReady,
+    leader,
+    reset,
+  };
 }

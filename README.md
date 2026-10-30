@@ -95,6 +95,25 @@ packages/
   caps their size, forwards them to the TV only and keeps a copy for a TV that refreshes.
 - **Words:** about 160 drawable words, never repeated within a game.
 
+**Drawing Phone** (3+ players)
+
+- **Setup:** 30/60/90/120 seconds to draw, and English or Portuguese random phrases.
+- **Write:** everyone writes a secret phrase, or taps 🎲 for a random one (45s).
+- **Pass it on:** the phrases travel from phone to phone, drawn by one player and guessed by
+  the next (40s to guess), until every chain has been through everyone. Each step everyone
+  works on a different chain and never sees the same one twice; the order is shuffled, so you
+  don't always get your work from the same person. With an even number of players the chains
+  stop one step early, so they still end on a phrase.
+- **Drawing:** a simple paint pad: pen and eraser in several sizes, 12 colours, fill bucket,
+  line, rectangle and circle, undo/redo, and clear (which undo brings back). The TV only shows
+  who's done; drawings stay secret until the reveal. Each finished action goes to the server,
+  so a reloaded phone gets its drawing back.
+- **Timing:** a step ends as soon as everyone pressed Done (they can still press Edit), or when
+  time runs out: whatever was written or drawn by then counts, an empty first phrase becomes a
+  random one, and someone who guessed nothing is skipped by the next drawer.
+- **Reveal:** the TV goes through each chain link by link ("Rui got “A cat on a bus” and drew
+  this"), then shows the original next to the final phrase. The host can skip ahead with Next.
+
 ## Getting started
 
 Requires Node 24+.
@@ -154,7 +173,7 @@ Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
 2. **browser-tests**: Playwright opens a TV and two phones in Chromium against the built apps
-   and plays a full game of trivia and of Draw & Guess. On failure the report and traces are uploaded as an
+   and plays a full game of trivia, Draw & Guess and Drawing Phone. On failure the report and traces are uploaded as an
    artifact (open a trace with `npx playwright show-trace`).
 3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
@@ -267,5 +286,6 @@ in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
       AI-generated question packs
 - [ ] **M5** Native app: QR scanner, deep links, haptics, game history, "recently played with"
 - [x] **M6a** Draw & Guess: live drawing from the phone to the TV, guesses, hints
-- [ ] **M6b** More games: bluff
+- [x] **M6b** Drawing Phone: write, draw and guess in chains, with a paint pad and a reveal
+- [ ] **M6c** More games: Werewolf, Media Genius, bluff
 - [ ] **M7** Redis-backed rooms, load testing, observability

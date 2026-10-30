@@ -4,6 +4,7 @@ import {
   isLeader,
   startingPlayerIds,
   toLobbyState,
+  type PhoneInput,
   type Room,
 } from '@couchwave/engine';
 import {
@@ -16,11 +17,15 @@ import {
   joinRoomSchema,
   kickPlayerSchema,
   libraryMoveSchema,
+  phoneDoneSchema,
+  phoneOptionsSchema,
+  phoneTextSchema,
   pressLibraryOk,
   reactSchema,
   readySchema,
   rejoinRoomSchema,
   resumeScreenSchema,
+  sketchOpSchema,
   strokeSchema,
   triviaOptionsSchema,
   type ClientToServerEvents,
@@ -318,7 +323,11 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (!room) return { ok: false, error: 'NOT_LEADER' };
     if (room.status !== 'setup' || !room.setup) return { ok: false, error: 'WRONG_PHASE' };
 
-    const schema = room.setup.gameId === 'draw' ? drawOptionsSchema : triviaOptionsSchema;
+    const schema = {
+      trivia: triviaOptionsSchema,
+      draw: drawOptionsSchema,
+      phone: phoneOptionsSchema,
+    }[room.setup.gameId];
     const parsed = schema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
 
@@ -436,6 +445,69 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     }
   }
 
+  // ── Drawing Phone ──────────────────────────────────────────────────────────
+  // Drafts and drawings only change the sender's own work, which their phone already
+  // shows, so they aren't broadcast: the server just keeps them for when time runs out.
+
+  @SubscribeMessage('phone:text')
+  handlePhoneText(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): void {
+    const parsed = phoneTextSchema.safeParse(body);
+    if (parsed.success) this.phoneInput(socket, { type: 'text', text: parsed.data.text });
+  }
+
+  @SubscribeMessage('phone:op')
+  handlePhoneOp(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): void {
+    const parsed = sketchOpSchema.safeParse(body);
+    if (parsed.success) this.phoneInput(socket, { type: 'op', op: parsed.data });
+  }
+
+  @SubscribeMessage('phone:undo')
+  handlePhoneUndo(@ConnectedSocket() socket: GameSocket): void {
+    this.phoneInput(socket, { type: 'undo' });
+  }
+
+  @SubscribeMessage('phone:redo')
+  handlePhoneRedo(@ConnectedSocket() socket: GameSocket): void {
+    this.phoneInput(socket, { type: 'redo' });
+  }
+
+  @SubscribeMessage('phone:random')
+  handlePhoneRandom(@ConnectedSocket() socket: GameSocket): Result<{ text: string }> {
+    const { playerId } = socket.data;
+    const game = this.phoneInput(socket, { type: 'random' });
+    if (!game || !playerId) return { ok: false, error: 'WRONG_PHASE' };
+    const view = playerView(game, playerId);
+    return { ok: true, data: { text: view.game === 'phone' ? view.draft : '' } };
+  }
+
+  @SubscribeMessage('phone:done')
+  handlePhoneDone(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Result<null> {
+    const parsed = phoneDoneSchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+    if (this.games.get(socket.data.roomCode ?? '')?.id !== 'phone') {
+      return { ok: false, error: 'NO_GAME' };
+    }
+    // Pressing Done twice, or with nothing written, changes nothing
+    if (this.phoneInput(socket, { type: 'done', done: parsed.data.done })) {
+      this.broadcastGame(socket.data.roomCode!);
+    }
+    return ok;
+  }
+
+  @SubscribeMessage('phone:next')
+  handlePhoneNext(@ConnectedSocket() socket: GameSocket): Result<null> {
+    const room = this.leaderRoom(socket);
+    if (!room) return { ok: false, error: 'NOT_LEADER' };
+    if (this.games.get(room.code)?.id !== 'phone') return { ok: false, error: 'NO_GAME' };
+
+    if (!this.phoneInput(socket, { type: 'next' })) return { ok: false, error: 'WRONG_PHASE' };
+    this.broadcastGame(room.code);
+    return ok;
+  }
+
   /** Ends the game (early or after the final scores) and goes back to the games library. */
   @SubscribeMessage('game:end')
   handleEnd(@ConnectedSocket() socket: GameSocket): Result<null> {
@@ -490,6 +562,13 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /** Passes a player's Drawing Phone input on; returns the game if it changed. */
+  private phoneInput(socket: GameSocket, input: PhoneInput) {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return undefined;
+    return this.games.phoneInput(roomCode, playerId, input, Date.now());
+  }
 
   /** The socket's room, if the socket belongs to that room's leader. */
   private leaderRoom(socket: GameSocket): Room | undefined {

@@ -22,7 +22,10 @@ export async function joinPhone(browser: Browser, code: string, name: string, av
   await phone.getByPlaceholder('Your name').fill(name);
   await phone.getByRole('radio', { name: avatar, exact: true }).click();
   await phone.getByRole('button', { name: 'Join', exact: true }).click();
-  await expect(phone.getByText(/You're (the host|in)/)).toBeVisible();
+  // The third player to join opens the games library, so they skip the lobby
+  await expect(
+    phone.getByText(/You're (the host|in)/).or(phone.getByText(/is choosing a game/)),
+  ).toBeVisible();
   return phone;
 }
 
