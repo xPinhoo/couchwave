@@ -733,6 +733,41 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+.trivia-countdown {
+  display: grid;
+  grid-row: 2 / 4;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.trivia-countdown h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+}
+
+.countdown-number {
+  font-size: clamp(8rem, 22vw, 16rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+  animation: countdown-pop 0.4s ease-out;
+}
+
+@keyframes countdown-pop {
+  from {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-number {
+    animation: none;
+  }
+}
+
 .prompt {
   margin: 0;
   font-size: clamp(2rem, 4vw, 3.5rem);

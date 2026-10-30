@@ -17,6 +17,7 @@ const settings: TriviaSettings = {
   ],
   questionMs: 10_000,
   revealMs: 3_000,
+  countdownMs: 0,
 };
 
 const start = (players = ['ana', 'rui']) => trivia.init(players, settings, 0);
@@ -47,6 +48,18 @@ describe('scoreAnswer', () => {
 describe('trivia', () => {
   it('opens the first question with a deadline', () => {
     expect(start()).toMatchObject({ phase: 'question', round: 0, endsAt: 10_000 });
+  });
+
+  it('can count down first, keeping the question hidden until it opens', () => {
+    let state = trivia.init(['ana'], { ...settings, countdownMs: 5_000 }, 0);
+    expect(state).toMatchObject({ phase: 'countdown', endsAt: 5_000 });
+    expect(trivia.hostView(state)).toMatchObject({ prompt: '', choices: [] });
+    expect(trivia.playerView(state, 'ana').choices).toEqual([]);
+    expect(answer(state, 'ana', 1, 1_000)).toBe(state);
+
+    state = trivia.onTick(state, 5_000);
+    expect(state).toMatchObject({ phase: 'question', round: 0, endsAt: 15_000 });
+    expect(trivia.hostView(state).prompt).toBe('Q1');
   });
 
   it('records one answer per player and ignores changes of mind', () => {

@@ -1,5 +1,6 @@
 import type { LobbyState, PhoneHostView, PhoneReveal } from '@couchwave/shared';
 import type { HostGame } from '../useHostRoom';
+import { useCountdownTicks } from '../sound';
 import { useCountdown } from '../useCountdown';
 import { PlayerAvatar } from './PlayerAvatar';
 import { PlayerTag, type PlayerLookup } from './PlayerTag';
@@ -19,6 +20,7 @@ const TASKS = {
 export function PhoneHost({ game, lobby }: { game: HostGame<PhoneHostView>; lobby: LobbyState }) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
+  useCountdownTicks(msLeft, view.phase !== 'reveal' && view.phase !== 'finished');
   const playerOf: PlayerLookup = (id) => lobby.players.find((p) => p.id === id);
 
   if (view.phase === 'finished') {

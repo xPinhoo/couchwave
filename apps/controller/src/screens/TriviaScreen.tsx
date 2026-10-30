@@ -60,6 +60,19 @@ export function TriviaScreen({
     );
   }
 
+  if (view.phase === 'countdown') {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.muted}>{view.totalRounds} questions</Text>
+        <Text style={styles.big}>Get ready!</Text>
+        <Text style={styles.countdown} accessibilityLabel="Starting in">
+          {Math.ceil(msLeft / 1000)}
+        </Text>
+        <Text style={styles.muted}>The questions are on the TV. Answer here, fast!</Text>
+      </View>
+    );
+  }
+
   const header = (
     <View style={styles.header}>
       <Text style={styles.eyebrow}>
@@ -119,6 +132,12 @@ export function TriviaScreen({
 }
 
 const styles = StyleSheet.create({
+  countdown: {
+    color: colors.accent,
+    fontSize: 120,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
   container: {
     flex: 1,
     padding: 16,

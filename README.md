@@ -61,12 +61,18 @@ packages/
 
 ## Games
 
+Drawing asks for the phone sideways: the canvas fills the screen at the TV's 16:9 shape with
+the tools beside it, about twice the area of an upright phone. Every visible timer on the TV
+ticks like a clock at 3, 2, 1 (a sound made in the browser, no audio files).
+
 **Quick-fire trivia**
 
 - **Setup:** the host picks a topic (General, Music, Sports, Cinema, Geography, History),
   10/15/30 seconds per question and 10/20/30 questions; the TV updates live. Confirming counts
   as the host's Ready, and everyone else taps a Ready button. The game starts as soon as every
   connected player is ready. The last settings are remembered for the next round.
+- **Get ready:** a 5-second countdown on the TV and phones before the first question, which
+  stays hidden until it opens.
 - **Play:** the question is on the TV and each phone shows four coloured answer buttons. The TV
   ticks off each player's avatar as they answer, and the reveal starts as soon as everyone has
   answered or the timer runs out. Each player's avatar then appears on the answer they picked.
@@ -82,7 +88,7 @@ packages/
 - **Setup:** 45/60/90 seconds to draw and 1–3 rounds; everyone draws once per round.
 - **Turn:** the artist picks one of 3 words (only their phone shows them), then draws it with a
   finger. Each stroke streams live to the TV: the phone sends points in small batches every
-  50ms, as integers relative to a 4:3 canvas, so the drawing looks the same at any size. The
+  50ms, as integers relative to a 16:9 canvas, so the drawing looks the same at any size. The
   artist has 8 colours (white is the eraser), 3 pen sizes, undo and clear.
 - **Guessing:** everyone else types guesses on their phone. Wrong guesses show on the TV; a
   guess one letter off privately says "so close" (on the TV it would give the word away).

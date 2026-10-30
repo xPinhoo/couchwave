@@ -26,6 +26,9 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   maxQuestions: Number.POSITIVE_INFINITY,
 };
 
+/** The "get ready" countdown before trivia's first question. */
+export const TRIVIA_COUNTDOWN_SECONDS = 5;
+
 /** How long the artist has to pick a word in Draw & Guess. */
 export const DRAW_CHOOSE_SECONDS = 15;
 

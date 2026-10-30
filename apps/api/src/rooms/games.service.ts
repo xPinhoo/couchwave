@@ -21,6 +21,7 @@ import {
   GAME_CONFIG,
   PHONE_GUESS_SECONDS,
   PHONE_WRITE_SECONDS,
+  TRIVIA_COUNTDOWN_SECONDS,
   type GameConfig,
 } from './rooms.constants.js';
 
@@ -88,6 +89,7 @@ export class GamesService {
           questions: pickQuestions(QUESTION_BANKS[topic], count, this.random),
           questionMs: secondsPerQuestion * msPerSecond,
           revealMs,
+          countdownMs: TRIVIA_COUNTDOWN_SECONDS * msPerSecond,
         },
         now,
       );

@@ -1,5 +1,6 @@
 import type { DrawHostView, LobbyState, Stroke } from '@couchwave/shared';
 import type { HostGame } from '../useHostRoom';
+import { useCountdownTicks } from '../sound';
 import { useCountdown } from '../useCountdown';
 import { DrawCanvas } from './DrawCanvas';
 import { FinalScores } from './FinalScores';
@@ -16,6 +17,7 @@ interface DrawHostProps {
 export function DrawHost({ game, lobby, strokes }: DrawHostProps) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
+  useCountdownTicks(msLeft, view.phase === 'choosing' || view.phase === 'drawing');
   const playerOf: PlayerLookup = (id) => lobby.players.find((p) => p.id === id);
 
   if (view.phase === 'finished') {

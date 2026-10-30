@@ -6,6 +6,7 @@ import {
 } from '@couchwave/shared';
 import type { CSSProperties } from 'react';
 import type { HostGame } from '../useHostRoom';
+import { useCountdownTicks } from '../sound';
 import { useCountdown } from '../useCountdown';
 import { FinalScores } from './FinalScores';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -20,6 +21,7 @@ interface TriviaHostProps {
 export function TriviaHost({ game, lobby }: TriviaHostProps) {
   const { view, serverTime } = game.update;
   const msLeft = useCountdown(view.endsAt, serverTime, game.receivedAt);
+  useCountdownTicks(msLeft, view.phase === 'countdown' || view.phase === 'question');
   const playerOf: PlayerLookup = (id) => lobby.players.find((p) => p.id === id);
 
   if (view.phase === 'finished') {
@@ -34,6 +36,28 @@ export function TriviaHost({ game, lobby }: TriviaHostProps) {
 
   const revealed = view.phase === 'reveal';
   const topic = triviaTopic(view.topic);
+
+  if (view.phase === 'countdown') {
+    const seconds = Math.ceil(msLeft / 1000);
+    return (
+      <main className="trivia">
+        <header className="trivia-header">
+          <span className="eyebrow">
+            {topic.emoji} {topic.name} · {view.totalRounds} questions
+          </span>
+          <span className="eyebrow">Room {lobby.roomCode}</span>
+        </header>
+        <section className="trivia-countdown">
+          <h1>Get ready!</h1>
+          {/* Keyed so each second pops in */}
+          <span key={seconds} className="countdown-number" aria-label="Starting in">
+            {seconds}
+          </span>
+          <p className="hint">Answer on your phone. Fast and right scores the most!</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="trivia">

@@ -20,6 +20,8 @@ export interface TriviaSettings {
   questions: TriviaQuestion[];
   questionMs: number;
   revealMs: number;
+  /** The "get ready" countdown before the first question; 0 starts straight away. */
+  countdownMs: number;
 }
 
 export interface TriviaInput {
@@ -148,7 +150,9 @@ export const trivia: GameModule<
       scores: Object.fromEntries(playerIds.map((id) => [id, 0])),
       results: {},
     };
-    return startQuestion(initial, 0, now);
+    return settings.countdownMs > 0
+      ? { ...initial, phase: 'countdown', endsAt: now + settings.countdownMs }
+      : startQuestion(initial, 0, now);
   },
 
   onInput(state, playerId, { choice }, now) {
@@ -169,6 +173,7 @@ export const trivia: GameModule<
 
   onTick(state, now) {
     if (state.endsAt === null || now < state.endsAt) return state;
+    if (state.phase === 'countdown') return startQuestion(state, 0, now);
     if (state.phase === 'question') return reveal(state, now);
     if (state.phase === 'reveal') {
       return state.round + 1 < state.settings.questions.length
@@ -182,6 +187,8 @@ export const trivia: GameModule<
 
   hostView(state) {
     const question = currentQuestion(state);
+    // Nobody gets a head start on the first question
+    const hidden = state.phase === 'countdown';
 
     return {
       game: 'trivia',
@@ -189,12 +196,13 @@ export const trivia: GameModule<
       phase: state.phase,
       round: state.round + 1,
       totalRounds: state.settings.questions.length,
-      prompt: question.prompt,
-      choices: question.choices,
+      prompt: hidden ? '' : question.prompt,
+      choices: hidden ? [] : question.choices,
       endsAt: state.endsAt,
       playerIds: state.playerIds,
       answeredIds: state.playerIds.filter((id) => id in state.answers),
-      correctChoice: state.phase === 'question' ? null : question.answer,
+      correctChoice:
+        state.phase === 'reveal' || state.phase === 'finished' ? question.answer : null,
       picks:
         state.phase === 'reveal'
           ? Object.entries(state.answers).map(([playerId, { choice }]) => ({ playerId, choice }))
@@ -211,10 +219,13 @@ export const trivia: GameModule<
       phase: state.phase,
       round: state.round + 1,
       totalRounds: state.settings.questions.length,
-      choices: question.choices,
+      choices: state.phase === 'countdown' ? [] : question.choices,
       endsAt: state.endsAt,
       myChoice: state.answers[playerId]?.choice ?? null,
-      lastResult: state.phase === 'question' ? null : (state.results[playerId] ?? null),
+      lastResult:
+        state.phase === 'reveal' || state.phase === 'finished'
+          ? (state.results[playerId] ?? null)
+          : null,
       score: state.scores[playerId] ?? 0,
       rank: rankOf(state, playerId),
       playerCount: state.playerIds.length,

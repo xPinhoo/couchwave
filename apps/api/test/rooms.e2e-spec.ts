@@ -451,7 +451,10 @@ describe('Rooms (e2e)', () => {
       const tv = await connect();
       const screen = next(tv, 'game:host');
       await tv.emitWithAck('room:resume', { screenToken });
-      expect((await screen).view).toMatchObject({ round: 1, phase: 'question' });
+      expect((await screen).view).toMatchObject({
+        round: 1,
+        phase: expect.stringMatching(/countdown|question/),
+      });
     });
 
     it('closes the room for everyone when the TV stays away too long', async () => {
@@ -611,11 +614,13 @@ describe('Rooms (e2e)', () => {
         await sleep(100);
         expect(started).toBe(false); // still waiting for Rui
 
-        const firstQuestion = next(host, 'game:host');
+        const firstScreen = next(host, 'game:host');
         expect(await rui.client.emitWithAck('setup:ready', { ready: true })).toEqual(ok);
-        expect((await firstQuestion).view).toMatchObject({
+        // A "get ready" countdown first, with the question still hidden
+        expect((await firstScreen).view).toMatchObject({
           topic: 'music',
-          phase: 'question',
+          phase: 'countdown',
+          prompt: '',
           round: 1,
           totalRounds: 2, // capped by the test config
         });

@@ -39,7 +39,8 @@ export function triviaTopic(id: TriviaTopic) {
   return TRIVIA_TOPICS.find((topic) => topic.id === id) ?? TRIVIA_TOPICS[0];
 }
 
-export type TriviaPhase = 'question' | 'reveal' | 'finished';
+/** `countdown` is the "get ready" before the first question, which stays hidden. */
+export type TriviaPhase = 'countdown' | 'question' | 'reveal' | 'finished';
 
 export interface LeaderboardEntry {
   playerId: string;
