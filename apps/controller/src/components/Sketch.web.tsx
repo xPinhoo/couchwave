@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
+import { DrawBoard } from './DrawBoard';
 import type { SketchPadProps, SketchViewProps } from './Sketch.types';
 
 type Tool = 'pen' | 'erase' | 'fill' | SketchShape;
@@ -40,8 +41,6 @@ interface InProgress {
 
 const canvasStyle = {
   display: 'block',
-  width: '100%',
-  aspectRatio: '4 / 3',
   borderRadius: 12,
   background: '#fff',
 } as const;
@@ -75,7 +74,15 @@ const context = (canvas: HTMLCanvasElement | null) =>
  * The Drawing Phone canvas: pen, eraser, fill, shapes, undo/redo and clear, a bit like
  * Paint. Each finished action is sent to the server, which keeps the drawing.
  */
-export function SketchPad({ initial, disabled, onOp, onUndo, onRedo }: SketchPadProps) {
+export function SketchPad({
+  initial,
+  disabled,
+  onOp,
+  onUndo,
+  onRedo,
+  info,
+  footer,
+}: SketchPadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const history = useRef<Sketch>({ ops: [...initial], redo: [] });
   const active = useRef<InProgress | null>(null);
@@ -204,22 +211,28 @@ export function SketchPad({ initial, disabled, onOp, onUndo, onRedo }: SketchPad
   const setSize = tool === 'erase' ? setEraserSize : setPenSize;
 
   return (
-    <View style={styles.pad}>
-      <canvas
-        ref={canvasRef}
-        aria-label="Drawing pad"
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
-        style={{
-          ...canvasStyle,
-          // Drawing must not scroll or zoom the page
-          touchAction: 'none',
-          cursor: disabled ? 'default' : 'crosshair',
-          opacity: disabled ? 0.7 : 1,
-        }}
-      />
+    <DrawBoard
+      canvas={
+        <canvas
+          ref={canvasRef}
+          aria-label="Drawing pad"
+          onPointerDown={start}
+          onPointerMove={move}
+          onPointerUp={end}
+          onPointerCancel={end}
+          style={{
+            ...canvasStyle,
+            width: '100%',
+            height: '100%',
+            // Drawing must not scroll or zoom the page
+            touchAction: 'none',
+            cursor: disabled ? 'default' : 'crosshair',
+            opacity: disabled ? 0.7 : 1,
+          }}
+        />
+      }
+    >
+      {info}
 
       {!disabled && (
         <>
@@ -297,7 +310,8 @@ export function SketchPad({ initial, disabled, onOp, onUndo, onRedo }: SketchPad
           </View>
         </>
       )}
-    </View>
+      {footer}
+    </DrawBoard>
   );
 }
 
@@ -336,13 +350,17 @@ export function SketchView({ ops }: SketchViewProps) {
   useSharpCanvas(canvasRef, paint);
   useEffect(paint, [paint]);
 
-  return <canvas ref={canvasRef} role="img" aria-label="Drawing to guess" style={canvasStyle} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      role="img"
+      aria-label="Drawing to guess"
+      style={{ ...canvasStyle, width: '100%', aspectRatio: '16 / 9' }}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
-  pad: {
-    gap: 10,
-  },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',

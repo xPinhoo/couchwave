@@ -140,7 +140,7 @@ export function DrawingPad({ color, size, onStroke, ref }: DrawingPadProps) {
       style={{
         display: 'block',
         width: '100%',
-        aspectRatio: '4 / 3',
+        height: '100%',
         borderRadius: 12,
         background: '#fff',
         // Drawing must not scroll or zoom the page

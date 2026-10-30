@@ -6,8 +6,9 @@ import {
   type PublicPlayer,
   type Stroke,
 } from '@couchwave/shared';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DrawBoard, LandscapeOnly, TurnPhonePrompt } from '../components/DrawBoard';
 import { DrawingPad } from '../components/DrawingPad';
 import type { DrawingPadHandle } from '../components/DrawingPad.types';
 import { EndGameButton } from '../components/EndGameButton';
@@ -117,7 +118,7 @@ export function DrawScreen({
                   accessibilityLabel={`Draw ${word}`}
                   disabled={!connected}
                   onPress={() => actions.choose(index)}
-                  style={({ pressed }) => [styles.word, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.choice, pressed && styles.pressed]}
                 >
                   <Text style={styles.wordText}>{word}</Text>
                 </Pressable>
@@ -134,35 +135,58 @@ export function DrawScreen({
     );
   }
 
+  if (view.isArtist) {
+    const word = (
+      <Text style={styles.word} accessibilityLabel={`Your word: ${view.word ?? ''}`}>
+        {view.word}
+      </Text>
+    );
+    // Drawing needs the phone sideways, for a bigger canvas
+    return (
+      <LandscapeOnly
+        prompt={
+          <View style={styles.container}>
+            {header}
+            <TurnPhonePrompt>
+              <Text style={styles.muted}>Your word to draw:</Text>
+              {word}
+            </TurnPhonePrompt>
+          </View>
+        }
+      >
+        <ArtistPad
+          key={view.turn}
+          info={
+            <>
+              {header}
+              <Text style={styles.muted}>Draw this (no letters!)</Text>
+              {word}
+            </>
+          }
+          actions={actions}
+        />
+      </LandscapeOnly>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {header}
-      {view.isArtist ? (
-        <ArtistPad key={view.turn} word={view.word ?? ''} actions={actions} />
-      ) : (
-        <Guessing
-          view={view}
-          artistName={artistName}
-          connected={connected}
-          onGuess={actions.guess}
-        />
-      )}
+      <Guessing view={view} artistName={artistName} connected={connected} onGuess={actions.guess} />
     </View>
   );
 }
 
-function ArtistPad({ word, actions }: { word: string; actions: DrawActions }) {
+function ArtistPad({ info, actions }: { info: ReactNode; actions: DrawActions }) {
   const pad = useRef<DrawingPadHandle>(null);
   const [color, setColor] = useState(0);
   const [size, setSize] = useState(1);
 
   return (
-    <View style={styles.artist}>
-      <Text style={styles.muted}>Draw this (no letters!)</Text>
-      <Text style={styles.big} accessibilityLabel={`Your word: ${word}`}>
-        {word}
-      </Text>
-      <DrawingPad ref={pad} color={color} size={size} onStroke={actions.stroke} />
+    <DrawBoard
+      canvas={<DrawingPad ref={pad} color={color} size={size} onStroke={actions.stroke} />}
+    >
+      {info}
 
       <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel="Colours">
         {DRAW_COLORS.map((value, index) => (
@@ -213,7 +237,7 @@ function ArtistPad({ word, actions }: { word: string; actions: DrawActions }) {
           <Text style={styles.toolText}>Clear</Text>
         </Pressable>
       </View>
-    </View>
+    </DrawBoard>
   );
 }
 
@@ -298,8 +322,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 6,
   },
   eyebrow: {
     color: colors.muted,
@@ -328,6 +354,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   word: {
+    color: colors.warning,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  choice: {
     alignSelf: 'stretch',
     padding: 18,
     borderRadius: 12,
@@ -338,9 +370,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: '700',
-  },
-  artist: {
-    gap: 10,
   },
   row: {
     flexDirection: 'row',

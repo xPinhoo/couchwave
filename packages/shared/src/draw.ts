@@ -36,8 +36,11 @@ export const DRAW_COLORS = [
 /** Pen widths, in thousandths of the canvas width. */
 export const DRAW_SIZES = [6, 14, 32] as const;
 
-/** Canvases are 4:3 on every screen, so a drawing looks the same on the phone and the TV. */
-export const DRAW_ASPECT = 4 / 3;
+/**
+ * Canvases are 16:9 on every screen, so a drawing looks the same on the phone (turned
+ * sideways) and the TV.
+ */
+export const DRAW_ASPECT = 16 / 9;
 
 /** Points are sent as integers from 0 to this, relative to the canvas width and height. */
 export const DRAW_COORD_MAX = 1000;

@@ -1,4 +1,5 @@
 import type { SketchOp } from '@couchwave/shared';
+import type { ReactNode } from 'react';
 
 export interface SketchPadProps {
   /** The drawing so far, e.g. after a reload. Only read when the pad mounts. */
@@ -9,6 +10,10 @@ export interface SketchPadProps {
   onOp: (op: SketchOp) => void;
   onUndo: () => void;
   onRedo: () => void;
+  /** Shown above the tools: the phrase, the timer… */
+  info?: ReactNode;
+  /** Shown below the tools, e.g. the Done button. */
+  footer?: ReactNode;
 }
 
 export interface SketchViewProps {

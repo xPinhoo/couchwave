@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { joinPhone, openTv, remote } from './support';
+import { joinPhone, openTv, remote, turnPhone } from './support';
 
 /** Drags across the drawing pad with whatever tool is selected. */
 async function scribble(phone: Page) {
@@ -46,7 +46,8 @@ test('a full game of Drawing Phone: write, draw, guess, and the reveal', async (
   // Draw: everyone gets someone else's phrase. Ana uses a rectangle and the fill bucket
   await expect(tv.getByRole('heading', { name: 'Draw the phrase you got' })).toBeVisible();
   for (const phone of phones) {
-    await expect(phone.getByText('Draw this')).toBeVisible();
+    await expect(phone.getByText('Turn your phone sideways')).toBeVisible();
+    await turnPhone(phone);
     await scribble(phone);
   }
   await ana.getByRole('radio', { name: 'Rectangle' }).click();

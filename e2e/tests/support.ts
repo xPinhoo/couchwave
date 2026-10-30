@@ -29,6 +29,15 @@ export async function joinPhone(browser: Browser, code: string, name: string, av
   return phone;
 }
 
+/** Turns the phone sideways, as drawing asks; `upright: true` turns it back. */
+export async function turnPhone(phone: Page, { upright = false } = {}) {
+  const { width, height } = phone.viewportSize()!;
+  const [short, long] = [Math.min(width, height), Math.max(width, height)];
+  await phone.setViewportSize(
+    upright ? { width: short, height: long } : { width: long, height: short },
+  );
+}
+
 /** The TV's player seats, as their visible text. */
 export function seats(tv: Page) {
   return tv.getByRole('region', { name: 'Players' }).locator('.seat.taken');

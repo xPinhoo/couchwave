@@ -1,3 +1,4 @@
+import { DRAW_ASPECT } from '@couchwave/shared';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { DrawingPadProps } from './DrawingPad.types';
@@ -19,7 +20,7 @@ export function DrawingPad(_props: DrawingPadProps) {
 
 const styles = StyleSheet.create({
   pad: {
-    aspectRatio: 4 / 3,
+    aspectRatio: DRAW_ASPECT,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

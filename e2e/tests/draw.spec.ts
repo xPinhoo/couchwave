@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { joinPhone, openTv, remote } from './support';
+import { joinPhone, openTv, remote, turnPhone } from './support';
 
 /** The artist picks their first word; returns it. */
 async function chooseFirstWord(artist: Page) {
@@ -7,7 +7,11 @@ async function chooseFirstWord(artist: Page) {
   const choice = artist.getByRole('button', { name: /^Draw / }).first();
   const word = (await choice.textContent())!;
   await choice.click();
-  await expect(artist.getByLabel(`Your word: ${word}`)).toBeVisible();
+  // Drawing asks for the phone sideways
+  await expect(artist.getByText('Turn your phone sideways')).toBeVisible();
+  await expect(artist.getByLabel('Drawing pad')).toBeHidden();
+  await turnPhone(artist);
+  await expect(artist.getByLabel(`Your word: ${word}`).filter({ visible: true })).toBeVisible();
   return word;
 }
 
@@ -65,6 +69,10 @@ test('a full game of Draw & Guess: choose, draw, guess, reveal, podium', async (
   const drawing = tv.getByRole('img', { name: 'Drawing' });
   await scribble(ana);
   await expect(drawing).toHaveAttribute('data-strokes', '1');
+  // Turning upright and back keeps the drawing going
+  await turnPhone(ana, { upright: true });
+  await expect(ana.getByText('Turn your phone sideways')).toBeVisible();
+  await turnPhone(ana);
   await ana.getByRole('button', { name: 'Undo' }).click();
   await expect(drawing).toHaveAttribute('data-strokes', '0');
   await scribble(ana);

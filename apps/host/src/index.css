@@ -1037,12 +1037,12 @@ a {
   position: relative;
 }
 
-/* Same 4:3 shape as the artist's pad, so the drawing looks the same */
+/* Same 16:9 shape as the artist's pad, so the drawing looks the same */
 .draw-canvas {
   display: block;
   width: 100%;
   max-height: calc(100vh - 10rem);
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   object-fit: contain;
   border-radius: 1rem;
   background: #fff;
@@ -1203,7 +1203,7 @@ a {
 }
 
 .phone-drawing .draw-canvas {
-  width: min(100%, calc((100vh - 16rem) * 4 / 3));
+  width: min(100%, calc((100vh - 16rem) * 16 / 9));
 }
 
 .phone-says {

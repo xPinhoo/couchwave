@@ -1,3 +1,4 @@
+import { DRAW_ASPECT } from '@couchwave/shared';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import type { SketchPadProps, SketchViewProps } from './Sketch.types';
@@ -6,9 +7,13 @@ import type { SketchPadProps, SketchViewProps } from './Sketch.types';
  * The native apps can't draw yet: the controller is played in the browser, which uses
  * Sketch.web.tsx. Writing and guessing work everywhere.
  */
-export function SketchPad(_props: SketchPadProps) {
+export function SketchPad({ info, footer }: SketchPadProps) {
   return (
-    <Placeholder text="Drawing works in the browser version of the controller. Open it on your phone's browser to take your turn!" />
+    <View style={styles.column}>
+      {info}
+      <Placeholder text="Drawing works in the browser version of the controller. Open it on your phone's browser to take your turn!" />
+      {footer}
+    </View>
   );
 }
 
@@ -25,8 +30,12 @@ function Placeholder({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
+  column: {
+    gap: 12,
+    padding: 16,
+  },
   pad: {
-    aspectRatio: 4 / 3,
+    aspectRatio: DRAW_ASPECT,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

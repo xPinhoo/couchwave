@@ -1,6 +1,7 @@
 import { PHRASE_MAX_LENGTH, type PhonePlayerView, type SketchOp } from '@couchwave/shared';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { LandscapeOnly, TurnPhonePrompt } from '../components/DrawBoard';
 import { EndGameButton } from '../components/EndGameButton';
 import { SketchPad, SketchView } from '../components/Sketch';
 import { colors } from '../theme';
@@ -81,20 +82,84 @@ export function PhoneScreen({
     );
   }
 
+  const header = (
+    <View style={styles.header}>
+      <Text style={styles.eyebrow}>
+        Step {view.step}/{view.totalSteps}
+      </Text>
+      <Text style={styles.timer} accessibilityLabel="Seconds left">
+        {Math.ceil(msLeft / 1000)}s
+      </Text>
+      {isLeader && <EndGameButton onEnd={onEnd} />}
+    </View>
+  );
+
+  if (view.phase === 'draw' && !view.done) {
+    return (
+      <DrawStep
+        key={view.step}
+        view={view}
+        header={header}
+        connected={connected}
+        actions={actions}
+      />
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>
-          Step {view.step}/{view.totalSteps}
-        </Text>
-        <Text style={styles.timer} accessibilityLabel="Seconds left">
-          {Math.ceil(msLeft / 1000)}s
-        </Text>
-        {isLeader && <EndGameButton onEnd={onEnd} />}
-      </View>
-      {/* A fresh step starts with a fresh text box and canvas */}
+      {header}
+      {/* A fresh step starts with a fresh text box */}
       <Step key={view.step} view={view} connected={connected} actions={actions} />
     </ScrollView>
+  );
+}
+
+/** Drawing, with the phone sideways for a bigger canvas. */
+function DrawStep({
+  view,
+  header,
+  connected,
+  actions,
+}: {
+  view: PhonePlayerView;
+  header: ReactNode;
+  connected: boolean;
+  actions: PhoneActions;
+}) {
+  const phrase = (
+    <Text style={styles.phrase} accessibilityLabel={`Your phrase: ${view.phrase ?? ''}`}>
+      {view.phrase}
+    </Text>
+  );
+
+  return (
+    <LandscapeOnly
+      prompt={
+        <View style={styles.container}>
+          {header}
+          <TurnPhonePrompt>
+            <Text style={styles.muted}>Your phrase to draw:</Text>
+            {phrase}
+          </TurnPhonePrompt>
+        </View>
+      }
+    >
+      <SketchPad
+        initial={view.sketch}
+        disabled={!connected}
+        onOp={actions.op}
+        onUndo={actions.undo}
+        onRedo={actions.redo}
+        info={
+          <>
+            {header}
+            {phrase}
+          </>
+        }
+        footer={<BigButton label="Done" disabled={!connected} onPress={() => actions.done(true)} />}
+      />
+    </LandscapeOnly>
   );
 }
 
@@ -134,16 +199,6 @@ function Step({
         </Text>
       )}
       {task === 'guess' && <SketchView ops={view.drawing ?? []} />}
-
-      {task === 'draw' && (
-        <SketchPad
-          initial={view.sketch}
-          disabled={locked}
-          onOp={actions.op}
-          onUndo={actions.undo}
-          onRedo={actions.redo}
-        />
-      )}
 
       {typing && (
         <TextInput
@@ -235,8 +290,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 6,
   },
   eyebrow: {
     color: colors.muted,
