@@ -27,7 +27,6 @@ export const AVATAR_PRESETS = [
   { id: 'bearded', emoji: '🧔', color: '#f4a261' },
   { id: 'turban', emoji: '👳', color: '#f6c453' },
   { id: 'grandma', emoji: '👵', color: '#f7a8b8' },
-  { id: 'grey-cat', emoji: '🐈', color: '#ffb3c7' },
   { id: 'droid', emoji: '🤖', color: '#ffcf70' },
   { id: 'anonymous', emoji: '👤', color: '#4c5a78' },
 ] as const satisfies readonly AvatarPreset[];

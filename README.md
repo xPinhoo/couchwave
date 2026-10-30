@@ -11,7 +11,7 @@ _leader_ in the code, since "host" already names the TV app): they open the game
 it with their phone as a joystick (◀ ▶ + Play), end games and kick players. If they leave for
 good, the next player in join order takes over.
 
-Players pick a name and an avatar when they join: one of 20 drawn presets, or a
+Players pick a name and an avatar when they join: one of 19 drawn presets, or a
 selfie that the phone crops and shrinks to a 160 px JPEG of a few KB before sending. While they
 wait, everyone can send emoji reactions that float up the TV.
 
