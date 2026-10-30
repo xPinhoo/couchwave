@@ -46,7 +46,7 @@ async function startDraw(ana: Page, rui: Page, tv: Page) {
 
 test('a full game of Draw & Guess: choose, draw, guess, reveal, podium', async ({ browser }) => {
   const { tv, code } = await openTv(browser);
-  const ana = await joinPhone(browser, code, 'Ana', 'unicorn');
+  const ana = await joinPhone(browser, code, 'Ana', 'pilot');
   const rui = await joinPhone(browser, code, 'Rui', 'dino');
   await startDraw(ana, rui, tv);
 
@@ -95,7 +95,7 @@ test('a full game of Draw & Guess: choose, draw, guess, reveal, podium', async (
 
 test('the TV gets the drawing back after a refresh', async ({ browser }) => {
   const { tv, code } = await openTv(browser);
-  const ana = await joinPhone(browser, code, 'Ana', 'fox');
+  const ana = await joinPhone(browser, code, 'Ana', 'happy-bot');
   const rui = await joinPhone(browser, code, 'Rui', 'cat');
   await startDraw(ana, rui, tv);
 

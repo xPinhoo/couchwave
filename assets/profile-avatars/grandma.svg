@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Coque de Cabelo -->
+  <circle cx="256" cy="135" r="40" fill="#CBD5E0" class="bold"/>
+  <!-- Corpo -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#805AD5" class="bold"/>
+  <!-- Face -->
+  <circle cx="256" cy="240" r="70" fill="#FFDBB5" class="bold"/>
+  <!-- Cabelo Principal -->
+  <path d="M186 220c0-45 30-75 70-75s70 30 70 75c0 15-15 15-20 15s-20-25-50-25-50 25-50 25-20 0-20-15z" fill="#CBD5E0" class="bold"/>
+  <!-- Olhos Felizes (Linhas em arco para ar simpático) -->
+  <path d="M195 230q20-20 40 0" fill="none" class="bold"/>
+  <path d="M277 230q20-20 40 0" fill="none" class="bold"/>
+  <!-- Grandes Óculos Redondos da Avó -->
+  <circle cx="215" cy="235" r="26" fill="none" class="bold"/>
+  <circle cx="297" cy="235" r="26" fill="none" class="bold"/>
+  <line x1="241" y1="235" x2="271" y2="235" class="bold"/>
+  <!-- Sorriso Doce e Bochechas -->
+  <circle cx="180" cy="285" r="16" fill="#FB7185"/>
+  <circle cx="332" cy="285" r="16" fill="#FB7185"/>
+  <path d="M226 285q30 25 60 0" fill="none" class="bold"/>
+</svg>

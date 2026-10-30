@@ -5,7 +5,7 @@ test('a full game of trivia: library, setup, ready-up, questions, podium, play a
   browser,
 }) => {
   const { tv, code } = await openTv(browser);
-  const ana = await joinPhone(browser, code, 'Ana', 'unicorn');
+  const ana = await joinPhone(browser, code, 'Ana', 'pilot');
   const rui = await joinPhone(browser, code, 'Rui', 'dino');
 
   // Library: the host browses with their phone, the TV follows
@@ -72,7 +72,7 @@ test('a full game of trivia: library, setup, ready-up, questions, podium, play a
 
 test('the TV can refresh in the middle of a game', async ({ browser }) => {
   const { tv, code } = await openTv(browser);
-  const ana = await joinPhone(browser, code, 'Ana', 'fox');
+  const ana = await joinPhone(browser, code, 'Ana', 'happy-bot');
 
   await ana.getByRole('button', { name: 'Choose a game' }).click();
   await ana.getByRole('button', { name: 'Play' }).click();

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Casaco de Faculdade -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#1E3A8A" class="bold"/>
+  <path d="M225 375l31 35 31-35" fill="none" class="bold"/>
+  <!-- Cabeça -->
+  <rect x="145" y="160" width="222" height="195" rx="65" fill="#FFDBB5" class="bold"/>
+  <!-- Óculos de Massa Bold -->
+  <rect x="165" y="210" width="75" height="45" rx="10" fill="none" class="bold"/>
+  <rect x="270" y="210" width="75" height="45" rx="10" fill="none" class="bold"/>
+  <line x1="240" y1="230" x2="270" y2="230" class="bold"/>
+  <!-- Olhos felizes por trás -->
+  <circle cx="202" cy="232" r="12" fill="#111"/>
+  <circle cx="307" cy="232" r="12" fill="#111"/>
+  <!-- Boné Académico / Capelo -->
+  <polygon points="256,95 370,135 256,175 142,135" fill="#111827" class="bold"/>
+  <rect x="240" y="135" width="32" height="30" fill="#111827"/>
+  <path d="M340 145v40" fill="none" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+  <!-- Sorriso Confiante -->
+  <path d="M220 295q36 20 72 0" fill="none" class="bold"/>
+</svg>

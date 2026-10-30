@@ -25,12 +25,13 @@ describe('Lobby', () => {
   it('shows each player with their avatar and crowns the host', () => {
     const photo = { kind: 'photo', dataUrl: 'data:image/jpeg;base64,AAAA' } as const;
     renderLobby([
-      player('ana', 'Ana', { avatar: { kind: 'preset', id: 'unicorn' } }),
+      player('ana', 'Ana', { avatar: { kind: 'preset', id: 'pilot' } }),
       player('rui', 'Rui', { avatar: photo }),
     ]);
 
     const [ana, rui] = seats();
-    expect(ana).toHaveTextContent('🦄👑Ana');
+    expect(ana).toHaveTextContent('👑Ana');
+    expect(ana?.querySelector('img')).toHaveAttribute('data-avatar', 'pilot');
     expect(rui?.querySelector('img')).toHaveAttribute('src', photo.dataUrl);
     expect(
       screen.getByText('Waiting for Ana to start the game from their phone…'),

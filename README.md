@@ -11,9 +11,16 @@ _leader_ in the code, since "host" already names the TV app): they open the game
 it with their phone as a joystick (◀ ▶ + Play), end games and kick players. If they leave for
 good, the next player in join order takes over.
 
-Players pick a name and an avatar when they join: one of 16 presets, or a selfie that the phone
-crops and shrinks to a 160 px JPEG of a few KB before sending. While they wait, everyone can send
-emoji reactions that float up the TV.
+Players pick a name and an avatar when they join: one of 20 drawn presets, or a
+selfie that the phone crops and shrinks to a 160 px JPEG of a few KB before sending. While they
+wait, everyone can send emoji reactions that float up the TV.
+
+To add an avatar, put a square SVG (`viewBox="0 0 512 512"`, transparent background, nothing
+important near the corners, which the circle crops) in `assets/profile-avatars`, run
+`npm run avatars -w @couchwave/shared`, and add an entry named after the file, with its circle
+colour and an emoji for the native apps, to `AVATAR_PRESETS` in `packages/shared/src/lobby.ts`.
+The script checks each drawing and bundles it into the shared package, so the TV and the phones
+never need to host the files.
 
 ## Architecture
 

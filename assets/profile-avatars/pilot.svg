@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Fato de Corrida -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#EF4444" class="bold"/>
+  <path d="M240 375v65" stroke="#FFF" stroke-width="14"/>
+  <!-- Capacete Espesso -->
+  <circle cx="256" cy="240" r="110" fill="#EF4444" class="bold"/>
+  <!-- Viseira do Capacete (Onde se veem os olhos cartoon) -->
+  <path d="M160 210h192v50c0 30-20 50-50 50H210c-30 0-50-20-50-50z" fill="#1E2937" class="bold"/>
+  <!-- Olhos Focados dentro da Viseira -->
+  <circle cx="215" cy="245" r="22" fill="#FFF" class="bold"/>
+  <circle cx="215" cy="245" r="10" fill="#111"/>
+  <circle cx="297" cy="245" r="22" fill="#FFF" class="bold"/>
+  <circle cx="297" cy="245" r="10" fill="#111"/>
+  <!-- Detalhe/Risca Estilizada no Capacete -->
+  <path d="M220 134e35-5 70 0" fill="none" stroke="#FBBF24" stroke-width="14"/>
+</svg>

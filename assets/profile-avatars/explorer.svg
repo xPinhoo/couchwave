@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Corpo -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#DD6B20" class="bold"/>
+  <!-- Cabeça -->
+  <circle cx="256" cy="245" r="70" fill="#FBD38D" class="bold"/>
+  <!-- Chapéu e Aba Bold -->
+  <path d="M201 195c5-45 25-65 55-65s50 20 55 65z" fill="#744210" class="bold"/>
+  <rect x="146" y="185" width="220" height="24" rx="12" fill="#9C4221" class="bold"/>
+  <!-- Olhos Curiosos Grandes -->
+  <circle cx="215" cy="240" r="26" fill="#FFF" class="bold"/>
+  <circle cx="218" cy="242" r="12" fill="#111"/>
+  <circle cx="297" cy="240" r="26" fill="#FFF" class="bold"/>
+  <circle cx="294" cy="242" r="12" fill="#111"/>
+  <!-- Bochechas e Sorriso -->
+  <circle cx="180" cy="285" r="14" fill="#FB7185"/>
+  <circle cx="332" cy="285" r="14" fill="#FB7185"/>
+  <path d="M226 285q30 15 60 0" fill="none" class="bold"/>
+</svg>

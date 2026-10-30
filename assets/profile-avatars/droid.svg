@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Antena -->
+  <path d="M256 160v-30" stroke="#4A5568" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="256" cy="120" r="14" fill="#E53E3E"/>
+  <!-- Cabeça Robot -->
+  <rect x="181" y="160" width="150" height="120" rx="25" fill="#A0AEC0"/>
+  <!-- Olhos Brilhantes -->
+  <circle cx="221" cy="210" r="18" fill="#3182CE"/>
+  <circle cx="291" cy="210" r="18" fill="#3182CE"/>
+  <!-- Boca Grelha -->
+  <rect x="216" y="250" width="80" height="12" rx="6" fill="#4A5568"/>
+  <!-- Corpo -->
+  <path d="M166 370c0-30 35-50 90-50s90 20 90 50v10H166z" fill="#718096"/>
+</svg>

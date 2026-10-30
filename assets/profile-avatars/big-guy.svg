@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Corpo Largo -->
+  <path d="M130 440c0-50 50-75 126-75s126 25 126 75z" fill="#4B5563" class="bold"/>
+  <!-- Cabeça Redonda e Larga -->
+  <circle cx="256" cy="230" r="105" fill="#FFDBB5" class="bold"/>
+  <!-- Cabelo Calvo Lateral -->
+  <path d="M154 210c-5-30 10-60 30-70M358 210c5-30-10-60-30-70" fill="none" class="bold"/>
+  <!-- Olhos Semicerrados/Sérios -->
+  <path d="M190 205h45M275 205h45" stroke="#000" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="212" cy="225" r="14" fill="#111"/>
+  <circle cx="297" cy="225" r="14" fill="#111"/>
+  <!-- Bigode Bold -->
+  <path d="M206 270q50-15 100 0c10 20-110 20-100 0z" fill="#1F2937" class="bold"/>
+  <!-- Cigarro na Boca Lateral -->
+  <path d="M300 280l35 5" stroke="#FFF" stroke-width="14" stroke-linecap="round" class="bold"/>
+  <circle cx="340" cy="286" r="6" fill="#EF4444"/> <!-- Brasa -->
+  <!-- Fumo Espesso Cartoon -->
+  <path d="M355 270q15-20 5-35t25-20" fill="none" stroke="#CBD5E1" stroke-width="12" stroke-linecap="round"/>
+</svg>

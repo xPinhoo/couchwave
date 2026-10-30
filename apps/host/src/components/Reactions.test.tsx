@@ -7,7 +7,7 @@ describe('Reactions', () => {
   it("floats each reaction with the sender's avatar", () => {
     const { container } = render(
       <Reactions
-        players={[player('ana', 'Ana', { avatar: { kind: 'preset', id: 'frog' } })]}
+        players={[player('ana', 'Ana', { avatar: { kind: 'preset', id: 'dino' } })]}
         reactions={[
           { key: 1, playerId: 'ana', emoji: '🎉' },
           { key: 2, playerId: 'ana', emoji: '🔥' },
@@ -17,7 +17,7 @@ describe('Reactions', () => {
 
     const floating = container.querySelectorAll('.reaction');
     expect(floating).toHaveLength(2);
-    expect(floating[0]).toHaveTextContent('🎉🐸Ana sent');
+    expect(floating[0]).toHaveTextContent('🎉Ana sent');
     expect(screen.getAllByText('Ana sent')).toHaveLength(2);
   });
 

@@ -27,7 +27,7 @@ describe('avatarSchema', () => {
   const photo = (dataUrl: string) => avatarSchema.safeParse({ kind: 'photo', dataUrl }).success;
 
   it('accepts presets from the list only', () => {
-    expect(avatarSchema.safeParse({ kind: 'preset', id: 'fox' }).success).toBe(true);
+    expect(avatarSchema.safeParse({ kind: 'preset', id: 'happy-bot' }).success).toBe(true);
     expect(avatarSchema.safeParse({ kind: 'preset', id: 'dragon' }).success).toBe(false);
   });
 

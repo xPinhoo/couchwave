@@ -4,7 +4,7 @@ export function player(id: string, name: string, overrides: Partial<PublicPlayer
   return {
     id,
     name,
-    avatar: { kind: 'preset', id: 'fox' },
+    avatar: { kind: 'preset', id: 'happy-bot' },
     connected: true,
     ...overrides,
   } satisfies PublicPlayer;

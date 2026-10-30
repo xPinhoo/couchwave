@@ -190,14 +190,14 @@ describe('Rooms (e2e)', () => {
       await ana.emitWithAck('room:join', {
         roomCode,
         name: 'Ana',
-        avatar: { kind: 'preset', id: 'unicorn' },
+        avatar: { kind: 'preset', id: 'pilot' },
       });
       const hostUpdate = next(host, 'lobby:update');
       const rui = await connect();
       await rui.emitWithAck('room:join', { roomCode, name: 'Rui', avatar: photo });
 
       expect((await hostUpdate).players.map((p) => p.avatar)).toEqual([
-        { kind: 'preset', id: 'unicorn' },
+        { kind: 'preset', id: 'pilot' },
         photo,
       ]);
     });

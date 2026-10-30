@@ -7,8 +7,8 @@ import { TriviaHost } from './TriviaHost';
 const players = [
   player('ana', 'Ana', { avatar: { kind: 'preset', id: 'cat' } }),
   player('rui', 'Rui', { avatar: { kind: 'preset', id: 'dino' } }),
-  player('eva', 'Eva', { avatar: { kind: 'preset', id: 'frog' } }),
-  player('tom', 'Tom', { avatar: { kind: 'preset', id: 'bee' } }),
+  player('eva', 'Eva', { avatar: { kind: 'preset', id: 'dino' } }),
+  player('tom', 'Tom', { avatar: { kind: 'preset', id: 'student' } }),
 ];
 const lobby = lobbyState({ status: 'playing', players });
 
@@ -81,8 +81,8 @@ describe('TriviaHost', () => {
     const choices = within(screen.getByRole('list', { name: 'Choices' })).getAllByRole('listitem');
     expect(choices[1]).toHaveClass('correct');
     expect(choices[0]).toHaveClass('dimmed');
-    expect(within(choices[0]!).getByLabelText('1 picked this')).toHaveTextContent('🐱');
-    expect(within(choices[1]!).getByLabelText('1 picked this')).toHaveTextContent('🦖');
+    expect(within(choices[0]!).getByLabelText('1 picked this')).toHaveTextContent('');
+    expect(within(choices[1]!).getByLabelText('1 picked this')).toHaveTextContent('');
     expect(within(choices[2]!).queryByLabelText(/picked this/)).not.toBeInTheDocument();
   });
 
@@ -92,7 +92,7 @@ describe('TriviaHost', () => {
       within(screen.getByRole('list', { name: 'Leaderboard' }))
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['🦖Rui1800 +900', '🐱Ana700 −250']);
+    ).toEqual(['Rui1800 +900', 'Ana700 −250']);
   });
 
   it('ends with a podium for the top 3 and a list for everyone else', () => {
@@ -121,7 +121,7 @@ describe('TriviaHost', () => {
     const rest = within(screen.getByRole('list', { name: 'Everyone else' })).getAllByRole(
       'listitem',
     );
-    expect(rest.map((li) => li.textContent)).toEqual(['4🐝Tom-200']);
+    expect(rest.map((li) => li.textContent)).toEqual(['4Tom-200']);
     expect(screen.getByText('Ana can play again or pick another game')).toBeInTheDocument();
   });
 });

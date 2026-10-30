@@ -61,7 +61,7 @@ describe('addPlayer', () => {
       {
         id: 'p1',
         name: 'Ana',
-        avatar: { kind: 'preset', id: 'fox' },
+        avatar: { kind: 'preset', id: 'happy-bot' },
         connected: true,
         joinedAt: 1,
       },
@@ -78,8 +78,8 @@ describe('addPlayer', () => {
   it('gives players without an avatar a preset nobody else is using', () => {
     const room = roomWith('a', 'b');
     expect(room.players.map((p) => p.avatar)).toEqual([
-      { kind: 'preset', id: 'fox' },
-      { kind: 'preset', id: 'frog' },
+      { kind: 'preset', id: 'happy-bot' },
+      { kind: 'preset', id: 'dino' },
     ]);
   });
 
@@ -229,7 +229,9 @@ describe('toLobbyState', () => {
     expect(toLobbyState(roomWith('Ana'))).toEqual({
       roomCode: 'ABCD',
       status: 'lobby',
-      players: [{ id: 'Ana', name: 'Ana', avatar: { kind: 'preset', id: 'fox' }, connected: true }],
+      players: [
+        { id: 'Ana', name: 'Ana', avatar: { kind: 'preset', id: 'happy-bot' }, connected: true },
+      ],
       leaderId: 'Ana',
       maxPlayers: MAX_PLAYERS,
       screenConnected: true,

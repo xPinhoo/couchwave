@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Corpo -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#F59E0B" class="bold"/>
+  <!-- Orelha Cortada/Mordida à Esquerda -->
+  <path d="M155 190l15-60 40 35z" fill="#D97706" class="bold"/>
+  <path d="M357 190l35-60-15 70z" fill="#D97706" class="bold"/>
+  <!-- Cabeça Gato -->
+  <circle cx="256" cy="235" r="95" fill="#F59E0B" class="bold"/>
+  <!-- OLHO NEGRO (Pisado/Roxo) -->
+  <circle cx="205" cy="220" r="38" fill="#7C3AED" class="bold"/> <!-- Hematoma -->
+  <path d="M190 220l30 5" stroke="#000" stroke-width="14" stroke-linecap="round"/> <!-- Olho Fechado -->
+  <!-- Olho Direito Normal Malandro -->
+  <circle cx="305" cy="220" r="28" fill="#FFF" class="bold"/>
+  <ellipse cx="305" cy="220" rx="6" ry="18" fill="#111"/> <!-- Pupila de Gato -->
+  <circle cx="301" cy="212" r="5" fill="#FFF"/>
+  <!-- Penso Rápido / Curativo na Bochecha -->
+  <path d="M315 280l25 25M340 280l-25 25" stroke="#FEF08A" stroke-width="14" stroke-linecap="round" class="bold"/>
+  <!-- Nariz e Bigodes Caídos -->
+  <polygon points="250,250 262,250 256,258" fill="#111"/>
+  <path d="M170 265h40M175 280l35-5M342 265h-40M337 280l-35-5" stroke="#000" stroke-width="10" stroke-linecap="round"/>
+</svg>

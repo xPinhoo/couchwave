@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Camisola Às Riscas -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#FFF" class="bold"/>
+  <path d="M172 400h168M195 380h122" stroke="#000" stroke-width="14"/>
+  <!-- Cabeça e Máscara Pasamontañas -->
+  <rect x="145" y="150" width="222" height="195" rx="65" fill="#1F2937" class="bold"/>
+  <!-- Recorte da Máscara (Pele) -->
+  <rect x="175" y="185" width="162" height="90" rx="30" fill="#FFDBB5" class="bold"/>
+  <!-- Olhos Expressivos (Malandros) -->
+  <circle cx="215" cy="225" r="30" fill="#FFF" class="bold"/>
+  <circle cx="218" cy="227" r="16" fill="#111"/>
+  <circle cx="212" cy="221" r="6" fill="#FFF"/>
+  <circle cx="297" cy="225" r="30" fill="#FFF" class="bold"/>
+  <circle cx="294" cy="227" r="16" fill="#111"/>
+  <circle cx="290" cy="221" r="6" fill="#FFF"/>
+  <!-- Sobrancelhas Zangadas por cima da máscara -->
+  <path d="M195 175l30 10M317 175l-30 10" stroke="#000" stroke-width="14" stroke-linecap="round"/>
+  <!-- Sorriso Lateral -->
+  <path d="M230 260q25 15 45-5" fill="none" class="bold"/>
+</svg>

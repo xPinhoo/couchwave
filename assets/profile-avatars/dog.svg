@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Coleira com Picos nos Ombros -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#EF4444" class="bold"/>
+  <polygon points="200,385 210,365 220,385 256,380 292,385 302,365 312,385" fill="#FFF" class="bold"/>
+  <!-- Cabeça Buldogue -->
+  <rect x="150" y="160" width="212" height="195" rx="50" fill="#94A3B8" class="bold"/>
+  <!-- Orelhas Caídas -->
+  <path d="M150 170l-25 50 35 20zM362 170l25 50-35 20z" fill="#64748B" class="bold"/>
+  <!-- Olhos Super Zangados -->
+  <path d="M185 200l40 15M325 200l-40 15" stroke="#000" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="210" cy="235" r="20" fill="#FFF" class="bold"/>
+  <circle cx="212" cy="235" r="10" fill="#EF4444"/>
+  <circle cx="302" cy="235" r="20" fill="#FFF" class="bold"/>
+  <circle cx="300" cy="235" r="10" fill="#EF4444"/>
+  <!-- Focinho Grande e Dentes de fora -->
+  <rect x="210" y="260" width="92" height="70" rx="20" fill="#64748B" class="bold"/>
+  <circle cx="256" cy="275" r="12" fill="#111"/>
+  <path d="M225 310q31 15 62 0" fill="none" class="bold"/>
+  <polygon points="235,310 242,325 250,310" fill="#FFF" class="bold"/>
+  <polygon points="262,310 270,325 277,310" fill="#FFF" class="bold"/>
+</svg>

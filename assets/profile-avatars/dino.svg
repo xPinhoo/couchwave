@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <style>.bold { stroke: #000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }</style>
+  <!-- Ombros -->
+  <path d="M160 440c0-40 30-65 96-65s96 25 96 65z" fill="#10B981" class="bold"/>
+  <!-- Cabeça Dino -->
+  <path d="M150 200c0-50 40-75 100-75s110 25 110 75v100c0 30-20 50-50 50h-110c-30 0-50-20-50-50z" fill="#10B981" class="bold"/>
+  <!-- Cristas/Espinhos -->
+  <path d="M210 125l10-25 20 25M270 125l10-25 20 25" fill="#F59E0B" class="bold"/>
+  <!-- Olhos Cutes/Bold -->
+  <circle cx="210" cy="220" r="34" fill="#FFF" class="bold"/>
+  <circle cx="214" cy="222" r="20" fill="#111"/>
+  <circle cx="206" cy="214" r="8" fill="#FFF"/>
+  <circle cx="295" cy="230" r="28" fill="#FFF" class="bold"/>
+  <circle cx="293" cy="232" r="16" fill="#111"/>
+  <circle cx="289" cy="226" r="6" fill="#FFF"/>
+  <!-- Bochechas -->
+  <circle cx="175" cy="275" r="18" fill="#FB7185"/>
+  <circle cx="330" cy="285" r="18" fill="#FB7185"/>
+  <!-- Boca com Dente Cónico -->
+  <path d="M210 280q45 25 90 0" fill="none" class="bold"/>
+  <polygon points="230,285 240,300 250,287" fill="#FFF" class="bold"/>
+</svg>

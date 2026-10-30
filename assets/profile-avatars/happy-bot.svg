@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Estilos Globais para Traços Bold -->
+  <style>
+    .bold-stroke { stroke: #000000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+
+  <!-- ==================== CORPO E OMBROS ==================== -->
+  <!-- Ombros/Peito -->
+  <path d="M160 440 c0-40 30-65 96-65 s96 25 96 65 Z" fill="#38BDF8" class="bold-stroke"/>
+  <!-- Detalhe Amarelo do Peito -->
+  <path d="M190 440 c0-25 20-40 66-40 s66 15 66 40 Z" fill="#FBBF24" class="bold-stroke"/>
+  <!-- Parafusos do Peito -->
+  <circle cx="210" cy="420" r="6" fill="#000000"/>
+  <circle cx="302" cy="420" r="6" fill="#000000"/>
+  
+  <!-- Detalhes Laterais dos Ombros (Amarelo) -->
+  <path d="M165 410 c-10 10-15 20-15 30" fill="none" class="bold-stroke"/>
+  <path d="M347 410 c10 10 15 20 15 30" fill="none" class="bold-stroke"/>
+  <circle cx="160" cy="425" r="5" fill="#000000"/>
+  <circle cx="352" cy="425" r="5" fill="#000000"/>
+
+  <!-- Pescoço (Anéis) -->
+  <rect x="220" y="340" width="72" height="40" rx="10" fill="#38BDF8" class="bold-stroke"/>
+  <line x1="220" y1="360" x2="292" y2="360" class="bold-stroke"/>
+
+  <!-- ==================== ANTENA E ORELHAS ==================== -->
+  <!-- Haste da Antena -->
+  <path d="M256 145 v-25 l50 -20 v-15" fill="none" class="bold-stroke"/>
+  <!-- Topo da Antena -->
+  <circle cx="306" cy="85" r="16" fill="#FBBF24" class="bold-stroke"/>
+  <!-- Base da Antena -->
+  <path d="M230 146 c10-12 42-12 52 0" fill="#FBBF24" class="bold-stroke"/>
+
+  <!-- Orelhas / Auscultadores -->
+  <rect x="122" y="215" width="24" height="65" rx="12" fill="#FBBF24" class="bold-stroke"/>
+  <rect x="366" y="215" width="24" height="65" rx="12" fill="#FBBF24" class="bold-stroke"/>
+
+  <!-- ==================== CABEÇA E FACIAL ==================== -->
+  <!-- Cabeça Principal -->
+  <rect x="140" y="145" width="232" height="205" rx="65" fill="#38BDF8" class="bold-stroke"/>
+
+  <!-- Bochechas Rosadas -->
+  <circle cx="180" cy="285" r="20" fill="#FB7185"/>
+  <circle cx="332" cy="285" r="20" fill="#FB7185"/>
+
+  <!-- Boca Aberta e Sorridente -->
+  <path d="M195 270 q61 45 122 0 c0 0 5 35-61 35 s-61-35-61-35 Z" fill="#111827" class="bold-stroke"/>
+  <!-- Língua -->
+  <path d="M220 295 q36-15 72 0 c-5 12-67 12-72 0 Z" fill="#F43F5E"/>
+
+  <!-- Olho Esquerdo -->
+  <circle cx="210" cy="235" r="38" fill="#FFFFFF" class="bold-stroke"/>
+  <circle cx="214" cy="237" r="24" fill="#111827"/>
+  <circle cx="204" cy="225" r="10" fill="#FFFFFF"/> <!-- Brilho grande -->
+  <circle cx="224" cy="245" r="4" fill="#FFFFFF"/>  <!-- Brilho pequeno -->
+
+  <!-- Olho Direito -->
+  <circle cx="302" cy="245" r="32" fill="#FFFFFF" class="bold-stroke"/>
+  <circle cx="300" cy="247" r="20" fill="#111827"/>
+  <circle cx="294" cy="239" r="8" fill="#FFFFFF"/>  <!-- Brilho grande -->
+  <circle cx="306" cy="253" r="3" fill="#FFFFFF"/>  <!-- Brilho pequeno -->
+
+  <!-- Sobrancelhas Expressionistas -->
+  <path d="M195 185 q15-10 25-2" fill="none" class="bold-stroke"/>
+  <path d="M290 195 q15-8 25 2" fill="none" class="bold-stroke"/>
+
+  <!-- Rebites/Parafusos da Cabeça -->
+  <circle cx="170" cy="175" r="6" fill="#FBBF24" class="bold-stroke"/>
+  <circle cx="342" cy="190" r="6" fill="#FBBF24" class="bold-stroke"/>
+</svg>
