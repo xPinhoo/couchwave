@@ -20,7 +20,7 @@ export async function joinPhone(browser: Browser, code: string, name: string, av
   await phone.goto(`${PHONE_URL}/?room=${code}`);
 
   await phone.getByPlaceholder('Your name').fill(name);
-  await phone.getByRole('radio', { name: avatar }).click();
+  await phone.getByRole('radio', { name: avatar, exact: true }).click();
   await phone.getByRole('button', { name: 'Join', exact: true }).click();
   await expect(phone.getByText(/You're (the host|in)/)).toBeVisible();
   return phone;
