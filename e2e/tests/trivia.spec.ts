@@ -11,13 +11,22 @@ test('a full game of trivia: library, setup, ready-up, questions, podium, play a
   // Library: the host browses with their phone, the TV follows
   await ana.getByRole('button', { name: 'Choose a game' }).click();
   await expect(tv.getByRole('heading', { name: 'Choose a game' })).toBeVisible();
+  // ▲ ▼ switch category, ◀ ▶ browse it, and the arrows stop at the ends
+  await expect(ana.getByRole('button', { name: 'Previous category' })).toBeDisabled();
+  await ana.getByRole('button', { name: 'Next category' }).click();
+  await expect(tv.getByRole('list', { name: 'Categories' })).toContainText('Creative');
   await ana.getByRole('button', { name: 'Next game' }).click();
   await expect(tv.getByRole('listitem').filter({ hasText: 'Bluff' })).toHaveAttribute(
     'aria-current',
     'true',
   );
   await expect(ana.getByRole('button', { name: 'Play' })).toBeDisabled();
-  await ana.getByRole('button', { name: 'Previous game' }).click();
+  await expect(ana.getByRole('button', { name: 'Next game' })).toBeDisabled();
+  await ana.getByRole('button', { name: 'Previous category' }).click();
+  await expect(tv.getByRole('listitem').filter({ hasText: 'Quick-fire trivia' })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
   await ana.getByRole('button', { name: 'Play' }).click();
 
   // Setup: settings appear live on the TV and on the other phone

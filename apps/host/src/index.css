@@ -7,6 +7,7 @@
   --accent: #7c5cff;
   --accent-2: #ff5ca8;
   --danger: #ff6b6b;
+  --gold: #f5c542;
 
   color-scheme: dark;
   font-family: 'Inter', system-ui, sans-serif;
@@ -288,10 +289,12 @@ a {
   font-size: 2rem;
 }
 
+/* One seat per row, top to bottom, so eight players never overflow sideways */
 .players ul {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 32rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -300,10 +303,10 @@ a {
 .seat {
   display: grid;
   place-items: center;
-  height: 5rem;
+  height: 3.75rem;
   border: 2px dashed var(--border);
   border-radius: 1rem;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 700;
 }
 
@@ -353,6 +356,27 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+}
+
+/* The room's leader: a gold ring and a crown in the bottom-right corner */
+.avatar-leader {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.avatar-leader .avatar {
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 14px #f5c54266;
+}
+
+.crown-badge {
+  position: absolute;
+  right: -18%;
+  bottom: -14%;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px #0009);
 }
 
 .visually-hidden {
@@ -424,24 +448,148 @@ a {
 .library {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 2rem;
+  gap: 1.5rem;
   min-height: 100vh;
-  padding: 2rem 4rem;
+  padding: 1.25rem 4rem 2rem;
 }
 
-.library-header {
-  text-align: center;
+/* Navbar: logo and room code on the left, everyone's avatar on the right */
+.library-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: #1c163399;
+  backdrop-filter: blur(8px);
 }
 
-.library-header h1 {
-  margin: 0.5rem 0 0;
+.library-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.library-room {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.library-room strong {
+  margin-left: 0.4rem;
+  color: var(--text);
+  font-size: 1.5rem;
+  letter-spacing: 0.2em;
+}
+
+.nav-players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-players li {
+  display: inline-flex;
+}
+
+.nav-players li.away {
+  opacity: 0.4;
+}
+
+/* A player who joins while the menu is up drops in with a bounce and a glow */
+.nav-players li.arrived {
+  animation: arrive 900ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-players li.arrived .avatar {
+  animation: arrive-glow 1.6s ease-out;
+}
+
+@keyframes arrive {
+  0% {
+    transform: translateY(-40px) scale(0.3) rotate(-25deg);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(4px) scale(1.25) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes arrive-glow {
+  0%,
+  40% {
+    box-shadow:
+      0 0 0 3px var(--accent-2),
+      0 0 24px var(--accent-2);
+  }
+}
+
+.library-body {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+}
+
+.library-body h1 {
+  margin: 0;
   font-size: clamp(2.5rem, 5vw, 4rem);
 }
 
+.category-tabs {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  list-style: none;
+}
+
+.category-tabs li {
+  padding: 0.5rem 1.4rem;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 1.25rem;
+  font-weight: 700;
+  transition:
+    background 200ms,
+    color 200ms;
+}
+
+.category-tabs li.selected {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-players li.arrived,
+  .nav-players li.arrived .avatar {
+    animation: none;
+  }
+}
+
+/* A category has few games: keep the cards card-sized and centred rather than stretched */
 .game-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 24rem));
+  justify-content: center;
   align-items: center;
+  width: 100%;
   gap: 1.5rem;
   margin: 0;
   padding: 0;
@@ -509,27 +657,6 @@ a {
   gap: 0.5rem;
 }
 
-.avatar-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.avatar-row li {
-  display: grid;
-  justify-items: center;
-  gap: 0.25rem;
-  font-weight: 600;
-}
-
-.avatar-row li.away {
-  opacity: 0.4;
-}
-
 @keyframes pop {
   from {
     transform: scale(0.8);
@@ -556,10 +683,6 @@ a {
 
 .primary-button:hover {
   transform: translateY(-2px);
-}
-
-.crown {
-  margin-right: 0.5rem;
 }
 
 .lobby-status {

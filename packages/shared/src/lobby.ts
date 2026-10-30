@@ -66,42 +66,87 @@ export const REACTION_COOLDOWN_MS = 300;
 /** The games that can be played (the library also lists some that are coming soon). */
 export type GameId = 'trivia' | 'draw';
 
+/** Library tabs: games grouped by how they play. */
+export const GAME_CATEGORIES = [
+  { id: 'quiz', name: 'Quiz', emoji: '🧠' },
+  { id: 'creative', name: 'Creative', emoji: '🎨' },
+] as const;
+
+export type GameCategoryId = (typeof GAME_CATEGORIES)[number]['id'];
+
 export interface GameInfo {
   id: string;
   name: string;
   emoji: string;
   description: string;
+  category: GameCategoryId;
   available: boolean;
   minPlayers: number;
 }
 
-/** What the games library shows, in order. */
+/** What the games library shows, in order, grouped by category. */
 export const GAMES: readonly GameInfo[] = [
   {
     id: 'trivia',
     name: 'Quick-fire trivia',
     emoji: '🧠',
     description: 'Answer fast for more points, but wrong answers cost you.',
+    category: 'quiz',
     available: true,
     minPlayers: 1,
-  },
-  {
-    id: 'bluff',
-    name: 'Bluff',
-    emoji: '🤥',
-    description: 'Write fake answers and fool your friends.',
-    available: false,
-    minPlayers: 3,
   },
   {
     id: 'draw',
     name: 'Draw & Guess',
     emoji: '🎨',
     description: 'Draw on your phone, everyone else guesses the word.',
+    category: 'creative',
     available: true,
     minPlayers: 2,
   },
+  {
+    id: 'bluff',
+    name: 'Bluff',
+    emoji: '🤥',
+    description: 'Write fake answers and fool your friends.',
+    category: 'creative',
+    available: false,
+    minPlayers: 3,
+  },
 ];
+
+/** The library opens by itself once this many players are in the lobby. */
+export const AUTO_LIBRARY_PLAYERS = 3;
+
+/** Indexes into `GAMES` of the games in a category, in library order. */
+export function gamesInCategory(category: GameCategoryId): number[] {
+  return GAMES.flatMap((game, index) => (game.category === category ? [index] : []));
+}
+
+/** Where a game sits in the library: its category's tab and its place within it. */
+export function libraryPosition(gameIndex: number) {
+  const category = GAMES[gameIndex]?.category ?? GAME_CATEGORIES[0].id;
+  const games = gamesInCategory(category);
+  return {
+    categoryIndex: GAME_CATEGORIES.findIndex((c) => c.id === category),
+    games,
+    gameIndex: Math.max(0, games.indexOf(gameIndex)),
+  };
+}
+
+/**
+ * Moves the library highlight: along the games of the current category, or to the first game
+ * of the previous or next category. Stops at the ends rather than wrapping around.
+ */
+export function moveInLibrary(selected: number, axis: 'game' | 'category', delta: -1 | 1) {
+  const position = libraryPosition(selected);
+  if (axis === 'game') {
+    const target = position.games[position.gameIndex + delta];
+    return target ?? selected;
+  }
+  const category = GAME_CATEGORIES[position.categoryIndex + delta];
+  return category ? (gamesInCategory(category.id)[0] ?? selected) : selected;
+}
 
 export function gameInfo(id: GameId): GameInfo {
   const game = GAMES.find((g) => g.id === id);

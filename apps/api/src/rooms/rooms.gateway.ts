@@ -259,7 +259,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (!room) return { ok: false, error: 'NOT_LEADER' };
     if (room.status !== 'lobby') return { ok: false, error: 'WRONG_PHASE' };
 
-    this.broadcastLobby(this.rooms.setStatus(room.code, 'library'));
+    this.broadcastLobby(this.rooms.openLibrary(room.code));
     return ok;
   }
 
@@ -285,7 +285,9 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     const parsed = libraryMoveSchema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
 
-    this.broadcastLobby(this.rooms.moveGameSelection(room.code, parsed.data.delta));
+    this.broadcastLobby(
+      this.rooms.moveGameSelection(room.code, parsed.data.delta, parsed.data.axis),
+    );
     return ok;
   }
 

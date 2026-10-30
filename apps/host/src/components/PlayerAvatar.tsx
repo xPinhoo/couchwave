@@ -4,10 +4,26 @@ import type { CSSProperties } from 'react';
 interface PlayerAvatarProps {
   avatar: Avatar;
   size?: number;
+  /** The room's leader: a gold ring and a crown badge. */
+  leader?: boolean;
 }
 
 /** A preset (a drawing on a coloured circle) or the player's selfie, always round. */
-export function PlayerAvatar({ avatar, size = 48 }: PlayerAvatarProps) {
+export function PlayerAvatar({ avatar, size = 48, leader = false }: PlayerAvatarProps) {
+  const image = <AvatarImage avatar={avatar} size={size} />;
+  if (!leader) return image;
+
+  return (
+    <span className="avatar-leader">
+      {image}
+      <span className="crown-badge" role="img" aria-label="Host" style={{ fontSize: size * 0.4 }}>
+        👑
+      </span>
+    </span>
+  );
+}
+
+function AvatarImage({ avatar, size }: { avatar: Avatar; size: number }) {
   const style = { width: size, height: size } as CSSProperties;
 
   if (avatar.kind === 'photo') {

@@ -7,8 +7,10 @@ room code and QR code. Friends join from the **controller** app on their phones 
 Expo, or straight from the browser) and play mini-games together in real time over WebSockets.
 
 The TV only displays. The **first player to join becomes the room's host 👑** (called the
-_leader_ in the code, since "host" already names the TV app): they open the games library, browse
-it with their phone as a joystick (◀ ▶ + Play), end games and kick players. If they leave for
+_leader_ in the code, since "host" already names the TV app), shown on the TV with a gold ring and a
+crown. They open the games library whenever they like (it also opens by itself the first time a
+third player joins), browse it with their phone as a joystick (▲ ▼ between categories such as Quiz
+and Creative, ◀ ▶ between their games, then Play), end games and kick players. If they leave for
 good, the next player in join order takes over.
 
 Players pick a name and an avatar when they join: one of 19 drawn presets, or a

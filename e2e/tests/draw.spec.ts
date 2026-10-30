@@ -29,8 +29,8 @@ async function guess(phone: Page, text: string) {
 /** Ana (the host) picks Draw & Guess with 45s to draw; both players get ready. */
 async function startDraw(ana: Page, rui: Page, tv: Page) {
   await ana.getByRole('button', { name: 'Choose a game' }).click();
-  // Draw & Guess is the last game: going back from the first one wraps around to it
-  await ana.getByRole('button', { name: 'Previous game' }).click();
+  // Draw & Guess opens the Creative category, one ▼ down from Quiz
+  await ana.getByRole('button', { name: 'Next category' }).click();
   await expect(tv.getByRole('listitem').filter({ hasText: 'Draw & Guess' })).toHaveAttribute(
     'aria-current',
     'true',

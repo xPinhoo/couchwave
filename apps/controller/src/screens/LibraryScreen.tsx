@@ -1,4 +1,11 @@
-import { GAMES, type LobbyState, type Reaction } from '@couchwave/shared';
+import {
+  GAME_CATEGORIES,
+  GAMES,
+  libraryPosition,
+  moveInLibrary,
+  type LobbyState,
+  type Reaction,
+} from '@couchwave/shared';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ReactionBar } from '../components/ReactionBar';
 import { StatusBanner } from '../components/StatusBanner';
@@ -9,15 +16,16 @@ interface LibraryScreenProps {
   lobby: LobbyState;
   connected: boolean;
   error: string | null;
-  onMove: (delta: -1 | 1) => void;
+  onMove: (delta: -1 | 1, axis: 'game' | 'category') => void;
   onSelect: () => void;
   onBack: () => void;
   onReact: (emoji: Reaction) => void;
 }
 
 /**
- * While the host picks a game on the TV, their phone is the joystick (◀ ▶ + Select).
- * Everyone else sees what's highlighted and can keep sending reactions.
+ * While the host picks a game on the TV, their phone is the joystick: ▲ ▼ switch category,
+ * ◀ ▶ browse its games, Play picks one. Everyone else sees what's highlighted and can keep
+ * sending reactions.
  */
 export function LibraryScreen({
   playerId,
@@ -32,12 +40,28 @@ export function LibraryScreen({
   const isLeader = lobby.leaderId === playerId;
   const leader = lobby.players.find((p) => p.id === lobby.leaderId);
   const game = GAMES[lobby.selectedGame];
+  const position = libraryPosition(lobby.selectedGame);
+  const category = GAME_CATEGORIES[position.categoryIndex];
+  // The arrows stop at the ends, so each one is only enabled when it can move
+  const canMove = (axis: 'game' | 'category', delta: -1 | 1) =>
+    moveInLibrary(lobby.selectedGame, axis, delta) !== lobby.selectedGame;
+
+  const pad = (axis: 'game' | 'category', delta: -1 | 1, label: string, name: string) => (
+    <PadButton
+      label={label}
+      accessibilityLabel={name}
+      disabled={!connected || !canMove(axis, delta)}
+      onPress={() => onMove(delta, axis)}
+    />
+  );
 
   return (
     <View style={styles.container}>
       <StatusBanner connected={connected} screenConnected={lobby.screenConnected} />
 
-      <Text style={styles.eyebrow}>{isLeader ? 'Choose a game' : 'Games library'}</Text>
+      <Text style={styles.eyebrow}>
+        {category ? `${category.emoji} ${category.name}` : 'Games library'}
+      </Text>
       <Text style={styles.emoji}>{game?.emoji}</Text>
       <Text style={styles.title}>{game?.name}</Text>
       <Text style={styles.muted}>{game?.available ? game.description : 'Coming soon'}</Text>
@@ -45,20 +69,24 @@ export function LibraryScreen({
       {isLeader ? (
         <>
           <View style={styles.pad}>
-            <PadButton label="◀" accessibilityLabel="Previous game" onPress={() => onMove(-1)} />
-            <Pressable
-              accessibilityRole="button"
-              disabled={!connected || !game?.available}
-              onPress={onSelect}
-              style={({ pressed }) => [
-                styles.select,
-                (!connected || !game?.available) && styles.disabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.selectText}>Play</Text>
-            </Pressable>
-            <PadButton label="▶" accessibilityLabel="Next game" onPress={() => onMove(1)} />
+            {pad('category', -1, '▲', 'Previous category')}
+            <View style={styles.padRow}>
+              {pad('game', -1, '◀', 'Previous game')}
+              <Pressable
+                accessibilityRole="button"
+                disabled={!connected || !game?.available}
+                onPress={onSelect}
+                style={({ pressed }) => [
+                  styles.select,
+                  (!connected || !game?.available) && styles.disabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.selectText}>Play</Text>
+              </Pressable>
+              {pad('game', 1, '▶', 'Next game')}
+            </View>
+            {pad('category', 1, '▼', 'Next category')}
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}>
@@ -80,18 +108,25 @@ export function LibraryScreen({
 function PadButton({
   label,
   accessibilityLabel,
+  disabled,
   onPress,
 }: {
   label: string;
   accessibilityLabel: string;
+  disabled: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.arrow,
+        disabled && styles.disabled,
+        pressed && styles.pressed,
+      ]}
     >
       <Text style={styles.arrowText}>{label}</Text>
     </Pressable>
@@ -126,11 +161,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pad: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
+  padRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
-    marginTop: 24,
   },
   arrow: {
     width: 76,

@@ -273,9 +273,9 @@ describe('Rooms (e2e)', () => {
       expect(await opened).toMatchObject({ status: 'library', selectedGame: 0 });
       await ruiSeesOpen; // the broadcast can land after Ana's ack
 
-      const wrapped = next(rui.client, 'lobby:update');
-      await ana.client.emitWithAck('library:move', { delta: -1 });
-      expect((await wrapped).selectedGame).toBe(GAMES.length - 1);
+      const moved = next(rui.client, 'lobby:update');
+      await ana.client.emitWithAck('library:move', { delta: 1, axis: 'category' });
+      expect(GAMES[(await moved).selectedGame]?.id).toBe('draw');
 
       const closed = next(host, 'lobby:update');
       expect(await ana.client.emitWithAck('library:close')).toEqual({ ok: true, data: null });
@@ -291,13 +291,28 @@ describe('Rooms (e2e)', () => {
       expect(rui.lobby.status).toBe('library');
     });
 
+    it('opens by itself when the third player joins, but only the first time', async () => {
+      const { roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      expect((await joinAs(roomCode, 'Rui')).lobby.status).toBe('lobby');
+      expect((await joinAs(roomCode, 'Eva')).lobby.status).toBe('library');
+
+      // The leader goes back to wait for one more: the next player doesn't drag them out
+      await ana.client.emitWithAck('library:close');
+      expect((await joinAs(roomCode, 'Tom')).lobby.status).toBe('lobby');
+    });
+
     it('refuses to start a game that is not available yet', async () => {
       const { roomCode } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       await ana.client.emitWithAck('library:open');
+      await ana.client.emitWithAck('library:move', { delta: 1, axis: 'category' });
+      const moved = next(ana.client, 'lobby:update');
       await ana.client.emitWithAck('library:move', { delta: 1 });
 
-      expect(GAMES[1]?.available).toBe(false);
+      const bluff = GAMES[(await moved).selectedGame];
+      expect(bluff?.id).toBe('bluff');
+      expect(bluff?.available).toBe(false);
       expect(await ana.client.emitWithAck('library:select')).toEqual({
         ok: false,
         error: 'GAME_UNAVAILABLE',
@@ -720,13 +735,13 @@ describe('Rooms (e2e)', () => {
         });
       });
 
-    /** Ana (the leader) picks Draw & Guess, the last game in the library. */
+    /** Ana (the leader) picks Draw & Guess, the first game of the Creative category. */
     async function inDrawSetup() {
       const { host, roomCode, screenToken } = await createRoom();
       const ana = await joinAs(roomCode, 'Ana');
       const rui = await joinAs(roomCode, 'Rui');
       await ana.client.emitWithAck('library:open');
-      await ana.client.emitWithAck('library:move', { delta: -1 });
+      await ana.client.emitWithAck('library:move', { delta: 1, axis: 'category' });
       const opened = next(host, 'lobby:update');
       expect(await ana.client.emitWithAck('library:select')).toEqual(ok);
       return { host, roomCode, screenToken, ana, rui, lobby: await opened };

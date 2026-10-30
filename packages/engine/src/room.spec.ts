@@ -1,4 +1,5 @@
 import {
+  AUTO_LIBRARY_PLAYERS,
   DEFAULT_DRAW_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
   GAMES,
@@ -15,11 +16,14 @@ import {
   generateRoomCode,
   isLeader,
   moveGameSelection,
+  openLibrary,
   openSetup,
   removePlayer,
   setPlayerConnected,
   setReady,
+  setRoomStatus,
   setSetupOptions,
+  shouldAutoOpenLibrary,
   startingPlayerIds,
   toLobbyState,
   type Room,
@@ -202,13 +206,43 @@ describe('game setup', () => {
 });
 
 describe('moveGameSelection', () => {
-  it('moves the highlight and wraps around at both ends', () => {
-    const room = createRoom('ABCD', 0);
-    expect(moveGameSelection(room, 1).selectedGame).toBe(1);
-    expect(moveGameSelection(room, -1).selectedGame).toBe(GAMES.length - 1);
+  const at = (id: string) => GAMES.findIndex((game) => game.id === id);
+  const selected = (room: { selectedGame: number }) => GAMES[room.selectedGame]?.id;
 
-    const last = { ...room, selectedGame: GAMES.length - 1 };
-    expect(moveGameSelection(last, 1).selectedGame).toBe(0);
+  it('browses the games of a category with ◀ ▶, stopping at the ends', () => {
+    const room = { ...createRoom('ABCD', 0), selectedGame: at('draw') };
+    expect(selected(moveGameSelection(room, 1))).toBe('bluff');
+    expect(selected(moveGameSelection(room, -1))).toBe('draw');
+    expect(selected(moveGameSelection({ ...room, selectedGame: at('bluff') }, 1))).toBe('bluff');
+  });
+
+  it('switches category with ▲ ▼, landing on its first game, stopping at the ends', () => {
+    const room = createRoom('ABCD', 0);
+    expect(selected(room)).toBe('trivia');
+    expect(selected(moveGameSelection(room, 1, 'category'))).toBe('draw');
+    expect(selected(moveGameSelection(room, -1, 'category'))).toBe('trivia');
+    const bluff = { ...room, selectedGame: at('bluff') };
+    expect(selected(moveGameSelection(bluff, -1, 'category'))).toBe('trivia');
+    expect(selected(moveGameSelection(bluff, 1, 'category'))).toBe('bluff');
+  });
+});
+
+describe('opening the library', () => {
+  it(`opens by itself once ${AUTO_LIBRARY_PLAYERS} players are in the lobby`, () => {
+    expect(shouldAutoOpenLibrary(roomWith('a', 'b'))).toBe(false);
+    expect(shouldAutoOpenLibrary(roomWith('a', 'b', 'c'))).toBe(true);
+  });
+
+  it('only does it the first time, so a leader waiting for more players stays put', () => {
+    const backInLobby = setRoomStatus(openLibrary(roomWith('a')), 'lobby');
+    expect(backInLobby.libraryOpened).toBe(true);
+    expect(
+      shouldAutoOpenLibrary({ ...backInLobby, players: roomWith('a', 'b', 'c').players }),
+    ).toBe(false);
+  });
+
+  it('never interrupts a game being set up or played', () => {
+    expect(shouldAutoOpenLibrary(setRoomStatus(roomWith('a', 'b', 'c'), 'setup'))).toBe(false);
   });
 });
 

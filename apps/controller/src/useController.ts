@@ -205,8 +205,8 @@ export function useController() {
     () => ({
       openLibrary: () => leaderAction((socket) => socket.emitWithAck('library:open')),
       closeLibrary: () => leaderAction((socket) => socket.emitWithAck('library:close')),
-      moveLibrary: (delta: -1 | 1) =>
-        leaderAction((socket) => socket.emitWithAck('library:move', { delta })),
+      moveLibrary: (delta: -1 | 1, axis: 'game' | 'category') =>
+        leaderAction((socket) => socket.emitWithAck('library:move', { delta, axis })),
       selectGame: () => leaderAction((socket) => socket.emitWithAck('library:select')),
       setOptions: (options: TriviaOptions | DrawOptions) =>
         leaderAction((socket) => socket.emitWithAck('setup:options', options)),

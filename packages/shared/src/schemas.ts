@@ -95,6 +95,8 @@ export type ReactPayload = z.input<typeof reactSchema>;
 
 export const libraryMoveSchema = z.object({
   delta: z.union([z.literal(-1), z.literal(1)]),
+  /** ◀ ▶ move between games of a category, ▲ ▼ between categories. */
+  axis: z.enum(['game', 'category']).default('game'),
 });
 
 export type LibraryMovePayload = z.input<typeof libraryMoveSchema>;

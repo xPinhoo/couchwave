@@ -1,11 +1,12 @@
 import {
+  AUTO_LIBRARY_PLAYERS,
   AVATAR_PRESETS,
   DEFAULT_DRAW_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
-  GAMES,
   MAX_PLAYERS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
+  moveInLibrary,
   type Avatar,
   type ErrorCode,
   type GameId,
@@ -32,6 +33,8 @@ export interface Room {
   screenConnected: boolean;
   /** Index into `GAMES` of the game highlighted in the library. */
   selectedGame: number;
+  /** Whether the library has been opened yet: it only opens by itself the first time. */
+  libraryOpened: boolean;
   /** Settings and ready-up of the chosen game; kept after a game so the next one reuses them. */
   setup: GameSetup | null;
   createdAt: number;
@@ -58,6 +61,7 @@ export function createRoom(code: string, now: number): Room {
     leaderId: null,
     screenConnected: true,
     selectedGame: 0,
+    libraryOpened: false,
     setup: null,
     createdAt: now,
   };
@@ -135,10 +139,27 @@ export function setRoomStatus(room: Room, status: RoomStatus): Room {
   return { ...room, status };
 }
 
-/** Moves the library highlight, wrapping around at both ends. */
-export function moveGameSelection(room: Room, delta: number): Room {
-  const count = GAMES.length;
-  return { ...room, selectedGame: (((room.selectedGame + delta) % count) + count) % count };
+/** Moves the library highlight within a category or across categories; see `moveInLibrary`. */
+export function moveGameSelection(
+  room: Room,
+  delta: -1 | 1,
+  axis: 'game' | 'category' = 'game',
+): Room {
+  return { ...room, selectedGame: moveInLibrary(room.selectedGame, axis, delta) };
+}
+
+/**
+ * Opens the games library. Done by the leader, or by itself once enough players are in the
+ * lobby, but only the first time: a leader who goes back to wait for more stays in the lobby.
+ */
+export function openLibrary(room: Room): Room {
+  return { ...room, status: 'library', libraryOpened: true };
+}
+
+export function shouldAutoOpenLibrary(room: Room): boolean {
+  return (
+    room.status === 'lobby' && !room.libraryOpened && room.players.length >= AUTO_LIBRARY_PLAYERS
+  );
 }
 
 /**

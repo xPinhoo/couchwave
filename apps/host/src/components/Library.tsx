@@ -1,56 +1,116 @@
-import { GAMES, type LobbyState } from '@couchwave/shared';
+import {
+  GAME_CATEGORIES,
+  GAMES,
+  libraryPosition,
+  type LobbyState,
+  type PublicPlayer,
+} from '@couchwave/shared';
+import { useState } from 'react';
+import { Logo } from './Logo';
 import { PlayerAvatar } from './PlayerAvatar';
 
 interface LibraryProps {
   lobby: LobbyState;
 }
 
-/** The games menu. The leader moves the highlight and picks a game from their phone. */
+/**
+ * The games menu, one category tab at a time. The leader moves the highlight and picks a game
+ * from their phone.
+ */
 export function Library({ lobby }: LibraryProps) {
   const leader = lobby.players.find((p) => p.id === lobby.leaderId);
+  const position = libraryPosition(lobby.selectedGame);
 
   return (
     <main className="library">
-      <header className="library-header">
-        <p className="eyebrow">Room {lobby.roomCode}</p>
-        <h1>Choose a game</h1>
+      <header className="library-nav">
+        <div className="library-brand">
+          <Logo size={40} />
+          <p className="library-room">
+            Room <strong aria-label="Room code">{lobby.roomCode}</strong>
+          </p>
+        </div>
+        <NavPlayers players={lobby.players} leaderId={lobby.leaderId} />
       </header>
 
-      <ol className="game-cards" aria-label="Games">
-        {GAMES.map((game, i) => {
-          const selected = i === lobby.selectedGame;
-          return (
-            <li
-              key={game.id}
-              className={['game-card', selected && 'selected', !game.available && 'unavailable']
-                .filter(Boolean)
-                .join(' ')}
-              aria-current={selected ? 'true' : undefined}
-            >
-              <span className="game-emoji" aria-hidden="true">
-                {game.emoji}
-              </span>
-              <h2>{game.name}</h2>
-              <p>{game.description}</p>
-              {!game.available && <span className="badge">Coming soon</span>}
-            </li>
-          );
-        })}
-      </ol>
+      <div className="library-body">
+        <h1>Choose a game</h1>
 
-      <footer className="library-footer">
-        <ul className="avatar-row" aria-label="Players">
-          {lobby.players.map((player) => (
-            <li key={player.id} className={player.connected ? undefined : 'away'}>
-              <PlayerAvatar avatar={player.avatar} size={44} />
-              <span>{player.name}</span>
+        <ul className="category-tabs" aria-label="Categories">
+          {GAME_CATEGORIES.map((category, i) => (
+            <li
+              key={category.id}
+              className={i === position.categoryIndex ? 'selected' : undefined}
+              aria-current={i === position.categoryIndex ? 'true' : undefined}
+            >
+              <span aria-hidden="true">{category.emoji}</span> {category.name}
             </li>
           ))}
         </ul>
+
+        <ol className="game-cards" aria-label="Games">
+          {position.games.map((index) => {
+            const game = GAMES[index]!;
+            const selected = index === lobby.selectedGame;
+            return (
+              <li
+                key={game.id}
+                className={['game-card', selected && 'selected', !game.available && 'unavailable']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-current={selected ? 'true' : undefined}
+              >
+                <span className="game-emoji" aria-hidden="true">
+                  {game.emoji}
+                </span>
+                <h2>{game.name}</h2>
+                <p>{game.description}</p>
+                {!game.available && <span className="badge">Coming soon</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <footer className="library-footer">
         <p className="hint">
-          {leader ? `${leader.name} is choosing on their phone… ◀ ▶ to browse, then Select` : ''}
+          {leader
+            ? `${leader.name} is choosing on their phone… ▲ ▼ for categories, ◀ ▶ for games, then Play`
+            : ''}
         </p>
       </footer>
     </main>
+  );
+}
+
+/** Everyone's avatar, in join order. Players who join while the menu is up pop in. */
+function NavPlayers({ players, leaderId }: { players: PublicPlayer[]; leaderId: string | null }) {
+  // Those here when the menu opened don't animate. Anyone after that is remembered as arrived,
+  // so their class (and its animation) stays put while the leader browses.
+  const [known, setKnown] = useState(() => new Set(players.map((p) => p.id)));
+  const [arrived, setArrived] = useState(() => new Set<string>());
+  const newcomers = players.filter((p) => !known.has(p.id)).map((p) => p.id);
+  if (newcomers.length > 0) {
+    // Updating state while rendering: React re-renders straight away, before painting
+    setKnown(new Set([...known, ...newcomers]));
+    setArrived(new Set([...arrived, ...newcomers]));
+  }
+
+  return (
+    <ul className="nav-players" aria-label="Players">
+      {players.map((player) => {
+        const isNew = arrived.has(player.id);
+        return (
+          <li
+            key={player.id}
+            title={player.name}
+            aria-label={player.name}
+            className={[isNew && 'arrived', !player.connected && 'away'].filter(Boolean).join(' ')}
+          >
+            <PlayerAvatar avatar={player.avatar} size={44} leader={player.id === leaderId} />
+          </li>
+        );
+      })}
+    </ul>
   );
 }

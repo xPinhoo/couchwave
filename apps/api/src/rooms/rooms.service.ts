@@ -4,6 +4,7 @@ import {
   createRoom,
   generateRoomCode,
   moveGameSelection,
+  openLibrary,
   openSetup,
   removePlayer,
   setPlayerConnected,
@@ -11,6 +12,7 @@ import {
   setReady,
   setScreenConnected,
   setSetupOptions,
+  shouldAutoOpenLibrary,
   type Player,
   type Room,
 } from '@couchwave/engine';
@@ -89,8 +91,12 @@ export class RoomsService {
     return this.update(code, (room) => setRoomStatus(room, status));
   }
 
-  moveGameSelection(code: string, delta: number): Room | undefined {
-    return this.update(code, (room) => moveGameSelection(room, delta));
+  moveGameSelection(code: string, delta: -1 | 1, axis: 'game' | 'category'): Room | undefined {
+    return this.update(code, (room) => moveGameSelection(room, delta, axis));
+  }
+
+  openLibrary(code: string): Room | undefined {
+    return this.update(code, openLibrary);
   }
 
   openSetup(code: string, gameId: GameId): Room | undefined {
@@ -135,7 +141,9 @@ export class RoomsService {
     const result = addPlayer(room, { ...player, now: this.clock() });
     if (!result.ok) return result;
 
-    this.rooms.set(code, result.room);
+    // Enough players to play: skip the wait and show everyone the games
+    const joined = shouldAutoOpenLibrary(result.room) ? openLibrary(result.room) : result.room;
+    this.rooms.set(code, joined);
     const session: PlayerSession = {
       token: newToken(),
       roomCode: code,
@@ -145,7 +153,7 @@ export class RoomsService {
     this.sessionsByToken.set(session.token, session);
     this.sessionsByPlayer.set(player.id, session);
 
-    return { ...result, sessionToken: session.token };
+    return { ...result, room: joined, sessionToken: session.token };
   }
 
   /** Hands the seat behind `token` to a new connection and marks the player as back. */

@@ -32,13 +32,12 @@ export function Lobby({ lobby, controllerUrl }: LobbyProps) {
         <ul>
           {lobby.players.map((player) => (
             <li key={player.id} className={player.connected ? 'seat taken' : 'seat taken away'}>
-              <PlayerAvatar avatar={player.avatar} size={56} />
+              <PlayerAvatar
+                avatar={player.avatar}
+                size={44}
+                leader={player.id === lobby.leaderId}
+              />
               <span className="seat-name">
-                {player.id === lobby.leaderId && (
-                  <span className="crown" aria-label="Host">
-                    👑
-                  </span>
-                )}
                 {player.name}
                 {!player.connected && <span className="seat-status">reconnecting…</span>}
               </span>
