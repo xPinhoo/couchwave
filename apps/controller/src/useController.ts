@@ -206,6 +206,16 @@ export function useController() {
     [],
   );
 
+  /** Werewolf: picks, votes and "ready". The server's next update shows the result. */
+  const werewolf = useMemo(
+    () => ({
+      pick: (targetId: string | null) =>
+        void socketRef.current?.emitWithAck('wolf:pick', { targetId }),
+      ready: () => void socketRef.current?.emitWithAck('wolf:ready'),
+    }),
+    [],
+  );
+
   /** Runs a host-only action and surfaces its error, if any. */
   const leaderAction = useCallback(
     async (send: (socket: ControllerSocket) => Promise<{ ok: boolean; error?: ErrorCode }>) => {
@@ -268,6 +278,7 @@ export function useController() {
     answer,
     drawing,
     phone,
+    werewolf,
     react,
     setReady,
     leader,

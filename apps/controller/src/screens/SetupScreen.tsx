@@ -6,14 +6,18 @@ import {
   TRIVIA_LENGTH_OPTIONS,
   TRIVIA_SECONDS_OPTIONS,
   TRIVIA_TOPICS,
+  WEREWOLF_DISCUSS_OPTIONS,
+  WEREWOLF_ROLES,
   gameInfo,
   phoneLanguage,
   triviaTopic,
+  werewolfRoleCounts,
   type DrawOptions,
   type GameSetup,
   type LobbyState,
   type PhoneOptions,
   type TriviaOptions,
+  type WerewolfOptions,
 } from '@couchwave/shared';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -68,10 +72,13 @@ export function SetupScreen({
             <TriviaSettings options={setup.options} onChange={onOptions} />
           ) : setup.gameId === 'draw' ? (
             <DrawSettings options={setup.options} onChange={onOptions} />
+          ) : setup.gameId === 'werewolf' ? (
+            <WerewolfSettings options={setup.options} onChange={onOptions} />
           ) : (
             <PhoneSettings options={setup.options} onChange={onOptions} />
           )}
 
+          {setup.gameId === 'werewolf' && <WerewolfRoles players={connectedCount} />}
           <BigButton label="Confirm" disabled={!connected} onPress={() => onReady(true)} />
           <Pressable accessibilityRole="button" onPress={onCancel} style={styles.link}>
             <Text style={styles.linkText}>← Back to the games</Text>
@@ -80,6 +87,7 @@ export function SetupScreen({
       ) : (
         <>
           <Summary setup={setup} />
+          {setup.gameId === 'werewolf' && <WerewolfRoles players={connectedCount} />}
           {isLeader ? (
             <>
               <Text style={styles.muted}>Settings confirmed. Waiting for everyone else…</Text>
@@ -257,7 +265,68 @@ function PhoneSettings({
   );
 }
 
+function WerewolfSettings({
+  options,
+  onChange,
+}: {
+  options: WerewolfOptions;
+  onChange: (options: WerewolfOptions) => void;
+}) {
+  const set = (change: Partial<WerewolfOptions>) => onChange({ ...options, ...change });
+  return (
+    <>
+      <Section label="Time to talk each day">
+        {WEREWOLF_DISCUSS_OPTIONS.map((seconds) => (
+          <Chip
+            key={seconds}
+            label={`${seconds / 60} min`}
+            selected={options.secondsToDiscuss === seconds}
+            onPress={() => set({ secondsToDiscuss: seconds })}
+          />
+        ))}
+      </Section>
+      <Section label="When someone dies">
+        <Chip
+          label="Show their role"
+          selected={options.revealRoles}
+          onPress={() => set({ revealRoles: true })}
+        />
+        <Chip
+          label="Keep it secret"
+          selected={!options.revealRoles}
+          onPress={() => set({ revealRoles: false })}
+        />
+      </Section>
+    </>
+  );
+}
+
+/** The roles dealt for this many players, e.g. "1 🐺 · 1 🔮 · 2 🧑‍🌾". */
+function WerewolfRoles({ players }: { players: number }) {
+  const counts = werewolfRoleCounts(Math.max(players, 4));
+  return (
+    <Text style={styles.muted}>
+      Roles:{' '}
+      {WEREWOLF_ROLES.filter((role) => counts[role.id] > 0)
+        .map((role) => `${counts[role.id]} ${role.emoji} ${role.name}`)
+        .join(' · ')}
+    </Text>
+  );
+}
+
 function Summary({ setup }: { setup: GameSetup }) {
+  if (setup.gameId === 'werewolf') {
+    const { secondsToDiscuss, revealRoles } = setup.options;
+    return (
+      <View style={styles.summary}>
+        <Text style={styles.summaryEmoji}>🐺</Text>
+        <Text style={styles.title}>Werewolf</Text>
+        <Text style={styles.muted}>
+          {secondsToDiscuss / 60} min to talk · roles of the dead {revealRoles ? 'shown' : 'secret'}
+        </Text>
+      </View>
+    );
+  }
   if (setup.gameId === 'phone') {
     const { secondsToDraw, language } = setup.options;
     const { flag, name } = phoneLanguage(language);

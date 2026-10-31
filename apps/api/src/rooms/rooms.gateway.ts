@@ -6,6 +6,7 @@ import {
   toLobbyState,
   type PhoneInput,
   type Room,
+  type WerewolfInput,
 } from '@couchwave/engine';
 import {
   GAMES,
@@ -28,6 +29,8 @@ import {
   sketchOpSchema,
   strokeSchema,
   triviaOptionsSchema,
+  werewolfOptionsSchema,
+  werewolfPickSchema,
   type ClientToServerEvents,
   type CreatedRoom,
   type GameId,
@@ -327,6 +330,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
       trivia: triviaOptionsSchema,
       draw: drawOptionsSchema,
       phone: phoneOptionsSchema,
+      werewolf: werewolfOptionsSchema,
     }[room.setup.gameId];
     const parsed = schema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
@@ -508,6 +512,23 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     return ok;
   }
 
+  // ── Werewolf ───────────────────────────────────────────────────────────────
+
+  @SubscribeMessage('wolf:pick')
+  handleWolfPick(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Result<null> {
+    const parsed = werewolfPickSchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+    return this.werewolfInput(socket, { type: 'pick', targetId: parsed.data.targetId });
+  }
+
+  @SubscribeMessage('wolf:ready')
+  handleWolfReady(@ConnectedSocket() socket: GameSocket): Result<null> {
+    return this.werewolfInput(socket, { type: 'ready' });
+  }
+
   /** Ends the game (early or after the final scores) and goes back to the games library. */
   @SubscribeMessage('game:end')
   handleEnd(@ConnectedSocket() socket: GameSocket): Result<null> {
@@ -568,6 +589,20 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     const { roomCode, role, playerId } = socket.data;
     if (!roomCode || role !== 'player' || !playerId) return undefined;
     return this.games.phoneInput(roomCode, playerId, input, Date.now());
+  }
+
+  /** Passes a player's Werewolf input on, and tells everyone when it changed something. */
+  private werewolfInput(socket: GameSocket, input: WerewolfInput): Result<null> {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return { ok: false, error: 'NOT_A_PLAYER' };
+    if (this.games.get(roomCode)?.id !== 'werewolf') return { ok: false, error: 'NO_GAME' };
+
+    // Picks that aren't allowed (the dead, the wrong phase, a werewolf for a werewolf) change nothing
+    if (!this.games.werewolfInput(roomCode, playerId, input, Date.now())) {
+      return { ok: false, error: 'WRONG_PHASE' };
+    }
+    this.broadcastGame(roomCode);
+    return ok;
   }
 
   /** The socket's room, if the socket belongs to that room's leader. */

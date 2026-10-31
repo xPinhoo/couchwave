@@ -6,3 +6,4 @@ export * from './library.js';
 export * from './lobby.js';
 export * from './phone.js';
 export * from './schemas.js';
+export * from './werewolf.js';

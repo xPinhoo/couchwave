@@ -5,5 +5,6 @@ export * from './games/phone/phone.js';
 export * from './games/phone/phrases.js';
 export * from './games/trivia/questions/index.js';
 export * from './games/trivia/trivia.js';
+export * from './games/werewolf/werewolf.js';
 export * from './random.js';
 export * from './room.js';

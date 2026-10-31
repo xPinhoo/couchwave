@@ -36,5 +36,11 @@ export const DRAW_CHOOSE_SECONDS = 15;
 export const PHONE_WRITE_SECONDS = 45;
 export const PHONE_GUESS_SECONDS = 40;
 
+/** Werewolf: time to read your role, for the night, the vote, and to show a death. */
+export const WEREWOLF_ROLES_SECONDS = 30;
+export const WEREWOLF_NIGHT_SECONDS = 40;
+export const WEREWOLF_VOTE_SECONDS = 40;
+export const WEREWOLF_NEWS_SECONDS = 8;
+
 /** How often running games are checked for expired timers. */
 export const GAME_TICK_MS = 250;

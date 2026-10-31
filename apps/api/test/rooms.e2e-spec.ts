@@ -15,6 +15,8 @@ import {
   type Stroke,
   type TriviaHostView,
   type TriviaPlayerView,
+  type WerewolfHostView,
+  type WerewolfPlayerView,
 } from '@couchwave/shared';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -1018,5 +1020,89 @@ describe('Rooms (e2e)', () => {
         draft: 'half a thought',
       });
     });
+  });
+
+  describe('werewolf', () => {
+    type HostUpdate = GameUpdate<WerewolfHostView>;
+    type PlayerUpdate = GameUpdate<WerewolfPlayerView>;
+    const ok = { ok: true, data: null };
+
+    const hostSees = (host: Client, match: (u: HostUpdate) => boolean) =>
+      waitFor<HostUpdate>(host, 'game:host', match);
+    const playerSees = (player: Client, match: (u: PlayerUpdate) => boolean) =>
+      waitFor<PlayerUpdate>(player, 'game:player', match);
+
+    it('plays a game: secret roles, a night, a vote, and the village wins', async () => {
+      const { host, roomCode } = await createRoom();
+      const players: Awaited<ReturnType<typeof joinAs>>[] = [];
+      for (const name of ['Ana', 'Rui', 'Eva', 'Ivo']) players.push(await joinAs(roomCode, name));
+      const [ana] = players;
+
+      // Werewolf is the first Social game, on the third tab
+      await remote(ana!.client, 'up', 'right', 'right', 'ok', 'down', 'ok');
+      expect(
+        await ana!.client.emitWithAck('setup:options', { secondsToDiscuss: 60, revealRoles: true }),
+      ).toEqual(ok);
+      const views = players.map((p) => playerSees(p.client, (u) => u.view.phase === 'roles'));
+      const roles = hostSees(host, (u) => u.view.phase === 'roles');
+      for (const p of players) await p.client.emitWithAck('setup:ready', { ready: true });
+
+      // The TV knows how many of each role there are, but not who
+      expect((await roles).view).toMatchObject({
+        roleCounts: { werewolf: 1, seer: 1, doctor: 0, villager: 2 },
+        knownRoles: {},
+      });
+      const roleOf = new Map((await Promise.all(views)).map((u, i) => [players[i]!, u.view.role]));
+      const wolf = players.find((p) => roleOf.get(p) === 'werewolf')!;
+      const villagers = players.filter((p) => p !== wolf);
+      expect(villagers).toHaveLength(3);
+
+      // Nothing to pick yet; then everyone confirms their role
+      expect(await wolf.client.emitWithAck('wolf:pick', { targetId: ana!.playerId })).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+      const night = hostSees(host, (u) => u.view.phase === 'night');
+      for (const p of players) expect(await p.client.emitWithAck('wolf:ready')).toEqual(ok);
+      await night;
+
+      // The werewolf eats the first villager; everyone else picks the werewolf
+      const [victim, ...living] = villagers;
+      const dawn = hostSees(host, (u) => u.view.phase === 'dawn');
+      const day = hostSees(host, (u) => u.view.phase === 'day');
+      expect(await wolf.client.emitWithAck('wolf:pick', { targetId: victim!.playerId })).toEqual(
+        ok,
+      );
+      for (const p of villagers) {
+        const target = p === victim ? living[0]! : wolf;
+        await p.client.emitWithAck('wolf:pick', { targetId: target.playerId });
+      }
+      expect((await dawn).view.dawn).toEqual({
+        outcome: 'killed',
+        victimId: victim!.playerId,
+        role: roleOf.get(victim!),
+      });
+
+      // The dead can't vote; the living vote the werewolf out
+      await day;
+      const vote = hostSees(host, (u) => u.view.phase === 'vote');
+      for (const p of [wolf, ...living]) await p.client.emitWithAck('wolf:ready');
+      await vote;
+      expect(await victim!.client.emitWithAck('wolf:pick', { targetId: null })).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+      const verdict = hostSees(host, (u) => u.view.phase === 'verdict');
+      await wolf.client.emitWithAck('wolf:pick', { targetId: null });
+      for (const p of living) await p.client.emitWithAck('wolf:pick', { targetId: wolf.playerId });
+      expect((await verdict).view.verdict).toMatchObject({
+        eliminatedId: wolf.playerId,
+        role: 'werewolf',
+      });
+
+      const finished = await hostSees(host, (u) => u.view.phase === 'finished');
+      expect(finished.view.winner).toBe('village');
+      expect(Object.keys(finished.view.knownRoles)).toHaveLength(4);
+    }, 10_000);
   });
 });

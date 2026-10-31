@@ -13,6 +13,13 @@ interface SetupScreenProps {
 
 /** The settings as label/value rows, for whichever game is being set up. */
 function settingRows(setup: GameSetup): { label: string; value: string }[] {
+  if (setup.gameId === 'werewolf') {
+    const { secondsToDiscuss, revealRoles } = setup.options;
+    return [
+      { label: 'Time to talk', value: `${secondsToDiscuss / 60} min` },
+      { label: 'Roles of the dead', value: revealRoles ? 'Shown' : 'Secret' },
+    ];
+  }
   if (setup.gameId === 'phone') {
     const { flag, name } = phoneLanguage(setup.options.language);
     return [

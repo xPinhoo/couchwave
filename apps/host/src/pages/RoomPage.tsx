@@ -6,6 +6,7 @@ import { PhoneHost } from '../components/PhoneHost';
 import { Reactions } from '../components/Reactions';
 import { SetupScreen } from '../components/SetupScreen';
 import { TriviaHost } from '../components/TriviaHost';
+import { WerewolfHost } from '../components/WerewolfHost';
 import { CONTROLLER_URL } from '../config';
 import { isGame, useHostRoom } from '../useHostRoom';
 
@@ -49,6 +50,8 @@ export function RoomPage() {
             <DrawHost game={game} lobby={lobby} strokes={strokes} />
           ) : lobby.status === 'playing' && game && isGame(game, 'phone') ? (
             <PhoneHost game={game} lobby={lobby} />
+          ) : lobby.status === 'playing' && game && isGame(game, 'werewolf') ? (
+            <WerewolfHost game={game} lobby={lobby} />
           ) : lobby.status === 'library' ? (
             <Library lobby={lobby} />
           ) : lobby.status === 'setup' ? (

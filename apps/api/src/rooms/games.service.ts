@@ -2,6 +2,7 @@ import {
   DRAW_WORDS,
   PHONE_PHRASES,
   QUESTION_BANKS,
+  dealRoles,
   draw,
   phone,
   pickQuestions,
@@ -9,10 +10,13 @@ import {
   planTurns,
   shuffle,
   trivia,
+  werewolf,
   type DrawState,
   type PhoneInput,
   type PhoneState,
   type TriviaState,
+  type WerewolfInput,
+  type WerewolfState,
 } from '@couchwave/engine';
 import type { GameSetup, HostView, PlayerView, Stroke } from '@couchwave/shared';
 import { Inject, Injectable } from '@nestjs/common';
@@ -22,6 +26,10 @@ import {
   PHONE_GUESS_SECONDS,
   PHONE_WRITE_SECONDS,
   TRIVIA_COUNTDOWN_SECONDS,
+  WEREWOLF_NEWS_SECONDS,
+  WEREWOLF_NIGHT_SECONDS,
+  WEREWOLF_ROLES_SECONDS,
+  WEREWOLF_VOTE_SECONDS,
   type GameConfig,
 } from './rooms.constants.js';
 
@@ -29,7 +37,8 @@ import {
 export type RunningGame =
   | { id: 'trivia'; state: TriviaState }
   | { id: 'draw'; state: DrawState; strokes: Stroke[]; pointCount: number }
-  | { id: 'phone'; state: PhoneState };
+  | { id: 'phone'; state: PhoneState }
+  | { id: 'werewolf'; state: WerewolfState };
 
 /** Caps on one turn's drawing, so a misbehaving client can't fill the server's memory. */
 export const MAX_STROKES_PER_TURN = 2_000;
@@ -43,6 +52,8 @@ export function hostView(game: RunningGame): HostView {
       return draw.hostView(game.state);
     case 'phone':
       return phone.hostView(game.state);
+    case 'werewolf':
+      return werewolf.hostView(game.state);
   }
 }
 
@@ -54,13 +65,15 @@ export function playerView(game: RunningGame, playerId: string): PlayerView {
       return draw.playerView(game.state, playerId);
     case 'phone':
       return phone.playerView(game.state, playerId);
+    case 'werewolf':
+      return werewolf.playerView(game.state, playerId);
   }
 }
 
 export const isOver = (game: RunningGame): boolean => game.state.phase === 'finished';
 
 export const minPlayers = (gameId: GameSetup['gameId']): number =>
-  ({ trivia, draw, phone })[gameId].minPlayers;
+  ({ trivia, draw, phone, werewolf })[gameId].minPlayers;
 
 /**
  * Holds the running game of each room. Methods that change a game return it only when
@@ -109,6 +122,24 @@ export class GamesService {
         now,
       );
       game = { id: 'phone', state };
+    } else if (setup.gameId === 'werewolf') {
+      const { secondsToDiscuss, revealRoles } = setup.options;
+      const news = WEREWOLF_NEWS_SECONDS * msPerSecond;
+      const state = werewolf.init(
+        playerIds,
+        {
+          roles: dealRoles(playerIds, this.random),
+          revealRoles,
+          rolesMs: WEREWOLF_ROLES_SECONDS * msPerSecond,
+          nightMs: WEREWOLF_NIGHT_SECONDS * msPerSecond,
+          dawnMs: news,
+          dayMs: secondsToDiscuss * msPerSecond,
+          voteMs: WEREWOLF_VOTE_SECONDS * msPerSecond,
+          verdictMs: news,
+        },
+        now,
+      );
+      game = { id: 'werewolf', state };
     } else {
       const { rounds, secondsToDraw } = setup.options;
       const state = draw.init(
@@ -164,6 +195,15 @@ export class GamesService {
     );
   }
 
+  /** Werewolf: a pick at night, a vote by day, or "ready". */
+  werewolfInput(roomCode: string, playerId: string, input: WerewolfInput, now: number) {
+    return this.update(roomCode, (game) =>
+      game.id === 'werewolf'
+        ? { ...game, state: werewolf.onInput(game.state, playerId, input, now) }
+        : game,
+    );
+  }
+
   tick(roomCode: string, now: number) {
     return this.update(roomCode, (game) => {
       switch (game.id) {
@@ -173,6 +213,8 @@ export class GamesService {
           return this.withDrawState(game, draw.onTick(game.state, now));
         case 'phone':
           return { ...game, state: phone.onTick(game.state, now) };
+        case 'werewolf':
+          return { ...game, state: werewolf.onTick(game.state, now) };
       }
     });
   }

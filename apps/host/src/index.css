@@ -1313,6 +1313,147 @@ a {
   }
 }
 
+/* ── Werewolf ─────────────────────────────────────────────────────────────── */
+
+.wolf {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 2rem;
+  min-height: 100vh;
+  padding: 2rem 4rem;
+  transition: background 1.2s ease;
+}
+.wolf-night {
+  background:
+    radial-gradient(circle at 80% 15%, #c9d6ff26, transparent 25%),
+    linear-gradient(180deg, #070a1f, #121036 70%, #1b1240);
+}
+.wolf-day {
+  background:
+    radial-gradient(circle at 20% 10%, #ffb34733, transparent 35%),
+    linear-gradient(180deg, #2a1640, #3b1d3f 60%, #4a2436);
+}
+.wolf-stage {
+  display: grid;
+  place-content: center;
+  animation: fade-in 600ms ease-out;
+}
+.wolf-announce,
+.wolf-verdict {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+.wolf-announce h1,
+.wolf-verdict h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+.wolf-announce .hint {
+  max-width: 40ch;
+  font-size: 1.5rem;
+  word-break: normal;
+  text-wrap: balance;
+}
+.wolf-emoji {
+  font-size: 7rem;
+  line-height: 1;
+  animation: rise 600ms ease-out;
+}
+.wolf-roles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.wolf-roles li {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.wolf-death {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+.wolf-verdict h1 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+}
+.wolf-was {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.75rem;
+  animation: rise 600ms ease-out 1.2s both;
+}
+.wolf-was strong {
+  color: var(--gold);
+}
+.wolf-tally {
+  display: grid;
+  gap: 0.5rem;
+  width: min(40rem, 90vw);
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.wolf-tally li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: left;
+}
+.wolf-tally li.out {
+  border-color: var(--danger);
+}
+.wolf-tally-count {
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+.wolf-voters {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 0.3rem;
+}
+.wolf-village li.dead {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+.wolf-grave {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+}
+.wolf-role-tag {
+  color: var(--gold);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 800px) {
   .lobby {
     grid-template-columns: 1fr;
@@ -1333,5 +1474,9 @@ a {
 
   .draw-layout {
     grid-template-columns: 1fr;
+  }
+
+  .wolf {
+    padding: 1rem;
   }
 }

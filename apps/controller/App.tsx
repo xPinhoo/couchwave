@@ -10,12 +10,25 @@ import { LobbyScreen } from './src/screens/LobbyScreen';
 import { PhoneScreen } from './src/screens/PhoneScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { TriviaScreen } from './src/screens/TriviaScreen';
+import { WerewolfScreen } from './src/screens/WerewolfScreen';
 import { colors } from './src/theme';
 import { isGame, useController } from './src/useController';
 
 export default function App() {
-  const { state, game, actionError, join, answer, drawing, phone, react, setReady, leader, reset } =
-    useController();
+  const {
+    state,
+    game,
+    actionError,
+    join,
+    answer,
+    drawing,
+    phone,
+    werewolf,
+    react,
+    setReady,
+    leader,
+    reset,
+  } = useController();
 
   return (
     <SafeAreaProvider>
@@ -53,6 +66,16 @@ export default function App() {
                 isLeader={state.lobby.leaderId === state.playerId}
                 actions={phone}
                 onNext={() => void leader.nextReveal()}
+                onEnd={() => void leader.endGame()}
+                onPlayAgain={() => void leader.playAgain()}
+              />
+            ) : isGame(game, 'werewolf') ? (
+              <WerewolfScreen
+                game={game}
+                players={state.lobby.players}
+                connected={state.connected}
+                isLeader={state.lobby.leaderId === state.playerId}
+                actions={werewolf}
                 onEnd={() => void leader.endGame()}
                 onPlayAgain={() => void leader.playAgain()}
               />

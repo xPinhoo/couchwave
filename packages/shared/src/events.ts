@@ -3,6 +3,7 @@ import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from
 import type { LibraryCursor } from './library.js';
 import type { PhoneHostView, PhoneOptions, PhonePlayerView, SketchOp } from './phone.js';
 import type { Avatar, Reaction } from './lobby.js';
+import type { WerewolfHostView, WerewolfOptions, WerewolfPlayerView } from './werewolf.js';
 import type {
   AnswerPayload,
   ChooseWordPayload,
@@ -12,6 +13,7 @@ import type {
   LibraryMovePayload,
   PhoneDonePayload,
   PhoneTextPayload,
+  WerewolfPickPayload,
   ReactPayload,
   ReadyPayload,
   RejoinRoomPayload,
@@ -54,13 +56,14 @@ export type RoomStatus = 'lobby' | 'library' | 'setup' | 'playing';
 export type GameSetup =
   | { gameId: 'trivia'; options: TriviaOptions; readyIds: string[] }
   | { gameId: 'draw'; options: DrawOptions; readyIds: string[] }
-  | { gameId: 'phone'; options: PhoneOptions; readyIds: string[] };
+  | { gameId: 'phone'; options: PhoneOptions; readyIds: string[] }
+  | { gameId: 'werewolf'; options: WerewolfOptions; readyIds: string[] };
 
 /** What the TV shows during a game. */
-export type HostView = TriviaHostView | DrawHostView | PhoneHostView;
+export type HostView = TriviaHostView | DrawHostView | PhoneHostView | WerewolfHostView;
 
 /** What one phone shows during a game. */
-export type PlayerView = TriviaPlayerView | DrawPlayerView | PhonePlayerView;
+export type PlayerView = TriviaPlayerView | DrawPlayerView | PhonePlayerView | WerewolfPlayerView;
 
 export interface LobbyState {
   roomCode: string;
@@ -160,6 +163,13 @@ export interface ClientToServerEvents {
   'phone:done': (payload: PhoneDonePayload, ack: (res: Result<null>) => void) => void;
   /** Drawing Phone, leader only, during the reveal: show the next link now. */
   'phone:next': (ack: (res: Result<null>) => void) => void;
+  /**
+   * Werewolf: tonight's pick (the werewolves' victim, who the seer looks into, who the
+   * doctor protects, or who a villager suspects), or a vote by day, where null skips.
+   */
+  'wolf:pick': (payload: WerewolfPickPayload, ack: (res: Result<null>) => void) => void;
+  /** Werewolf: "got it" on your role, or "let's vote" during the day. */
+  'wolf:ready': (ack: (res: Result<null>) => void) => void;
 }
 
 /** Events broadcast by the server. */

@@ -29,6 +29,7 @@ import {
   type PhoneLanguage,
 } from './phone.js';
 import { AVATAR_PHOTO_MAX_CHARS, AVATAR_PRESETS, REACTIONS } from './lobby.js';
+import { WEREWOLF_DISCUSS_OPTIONS } from './werewolf.js';
 
 export const roomCodeSchema = z
   .string()
@@ -223,3 +224,14 @@ export const phoneDoneSchema = z.object({
 });
 
 export type PhoneDonePayload = z.input<typeof phoneDoneSchema>;
+
+export const werewolfOptionsSchema = z.object({
+  secondsToDiscuss: oneOf(WEREWOLF_DISCUSS_OPTIONS),
+  revealRoles: z.boolean(),
+});
+
+export const werewolfPickSchema = z.object({
+  targetId: z.string().min(1).max(64).nullable(),
+});
+
+export type WerewolfPickPayload = z.input<typeof werewolfPickSchema>;

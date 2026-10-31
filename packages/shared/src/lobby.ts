@@ -64,12 +64,13 @@ export type Reaction = (typeof REACTIONS)[number];
 export const REACTION_COOLDOWN_MS = 300;
 
 /** The games that can be played (the library also lists some that are coming soon). */
-export type GameId = 'trivia' | 'draw' | 'phone';
+export type GameId = 'trivia' | 'draw' | 'phone' | 'werewolf';
 
 /** Library tabs: games grouped by how they play. */
 export const GAME_CATEGORIES = [
   { id: 'quiz', name: 'Quiz', emoji: '🧠' },
   { id: 'creative', name: 'Creative', emoji: '🎨' },
+  { id: 'social', name: 'Social', emoji: '🎭' },
 ] as const;
 
 export type GameCategoryId = (typeof GAME_CATEGORIES)[number]['id'];
@@ -121,6 +122,15 @@ export const GAMES: readonly GameInfo[] = [
     category: 'creative',
     available: false,
     minPlayers: 3,
+  },
+  {
+    id: 'werewolf',
+    name: 'Werewolf',
+    emoji: '🐺',
+    description: 'Secret roles, night kills and a village vote. Who can you trust?',
+    category: 'social',
+    available: true,
+    minPlayers: 4,
   },
 ];
 

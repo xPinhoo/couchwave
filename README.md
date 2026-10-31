@@ -120,6 +120,24 @@ ticks like a clock at 3, 2, 1 (a sound made in the browser, no audio files).
 - **Reveal:** the TV goes through each chain link by link ("Rui got “A cat on a bus” and drew
   this"), then shows the original next to the final phrase. The host can skip ahead with Next.
 
+**Werewolf** (4+ players)
+
+- **Setup:** 1/2/3/5 minutes to talk each day, and whether the dead's role is shown or kept
+  secret until the end.
+- **Roles:** dealt at random and shown only on each phone, behind a tap so the person next to
+  you can't see. 1 werewolf (2 from 6 players, 3 from 9), a seer, a doctor from 5 players, and
+  villagers. Werewolves know each other. The TV only says how many of each role there are.
+- **Night:** everyone picks someone on their phone, villagers included (who they suspect), so
+  nobody can tell who's who by who's tapping. The werewolves choose a victim and see each
+  other's picks; the night only ends early once they agree. The seer learns straight away if
+  the person they picked is a werewolf. The doctor protects someone, not the same person two
+  nights in a row.
+- **Dawn:** the TV announces who was eaten (and their role), or that nobody died.
+- **Day and vote:** the village talks, then everyone votes on their phone or skips. The TV shows
+  who voted for whom. The most votes is out; a tie, or most people skipping, saves everyone.
+- **End:** the village wins when every werewolf is gone, the werewolves once they're as many as
+  everyone else. The dead watch with every role on their phone.
+
 ## Getting started
 
 Requires Node 24+.
@@ -179,7 +197,7 @@ Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
 2. **browser-tests**: Playwright opens a TV and two phones in Chromium against the built apps
-   and plays a full game of trivia, Draw & Guess and Drawing Phone. On failure the report and traces are uploaded as an
+   and plays a full game of trivia, Draw & Guess, Drawing Phone and Werewolf. On failure the report and traces are uploaded as an
    artifact (open a trace with `npx playwright show-trace`).
 3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
@@ -293,5 +311,6 @@ in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
 - [ ] **M5** Native app: QR scanner, deep links, haptics, game history, "recently played with"
 - [x] **M6a** Draw & Guess: live drawing from the phone to the TV, guesses, hints
 - [x] **M6b** Drawing Phone: write, draw and guess in chains, with a paint pad and a reveal
-- [ ] **M6c** More games: Werewolf, Media Genius, bluff
+- [x] **M6c** Werewolf: secret roles, night picks for every role, a village vote
+- [ ] **M6d** More games: Media Genius, bluff
 - [ ] **M7** Redis-backed rooms, load testing, observability
