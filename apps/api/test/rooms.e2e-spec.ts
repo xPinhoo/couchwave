@@ -5,6 +5,8 @@ import {
   focusedGame,
   type LibraryDirection,
   type ClientToServerEvents,
+  type ColorHostView,
+  type ColorPlayerView,
   type DrawHostView,
   type DrawPlayerView,
   type GameUpdate,
@@ -1020,6 +1022,73 @@ describe('Rooms (e2e)', () => {
         draft: 'half a thought',
       });
     });
+  });
+
+  describe('guess the color', () => {
+    type HostUpdate = GameUpdate<ColorHostView>;
+    type PlayerUpdate = GameUpdate<ColorPlayerView>;
+    const ok = { ok: true, data: null };
+
+    it('plays a game: colours stay private, then closeness scores points', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      // The second game of the first tab
+      await ana.client.emitWithAck('library:open');
+      await remote(ana.client, 'right', 'ok');
+      expect(
+        await ana.client.emitWithAck('setup:options', {
+          category: 'flags',
+          rounds: 5,
+          secondsToPick: 15,
+        }),
+      ).toEqual(ok);
+      expect(
+        await ana.client.emitWithAck('setup:options', {
+          category: 'nope',
+          rounds: 5,
+          secondsToPick: 15,
+        } as never),
+      ).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
+
+      const hostSees = (match: (u: HostUpdate) => boolean) =>
+        waitFor<HostUpdate>(host, 'game:host', match);
+      const anaSees = (match: (u: PlayerUpdate) => boolean) =>
+        waitFor<PlayerUpdate>(ana.client, 'game:player', match);
+
+      const countdown = hostSees((u) => u.view.phase === 'countdown');
+      const firstRound = hostSees((u) => u.view.phase === 'pick');
+      await rui.client.emitWithAck('setup:ready', { ready: true });
+      await ana.client.emitWithAck('setup:ready', { ready: true });
+      expect((await countdown).view).toMatchObject({ puzzleId: '', category: 'flags' });
+      const { view } = await firstRound;
+      // The cap on rounds in tests
+      expect(view.totalRounds).toBe(2);
+      expect(view.answer).toBeNull();
+
+      // Nothing mixed yet: nothing to lock in
+      expect(await ana.client.emitWithAck('color:lock')).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+
+      const reveal = hostSees((u) => u.view.phase === 'reveal');
+      ana.client.emit('color:pick', { color: 'red' } as never);
+      ana.client.emit('color:pick', { color: '#ff0000' });
+      rui.client.emit('color:pick', { color: '#00ff00' });
+      await sleep(50);
+      expect(await ana.client.emitWithAck('color:lock')).toEqual(ok);
+      expect(await rui.client.emitWithAck('color:lock')).toEqual(ok);
+
+      const revealed = (await reveal).view;
+      expect(revealed.answer).toMatch(/^#[0-9a-f]{6}$/);
+      expect(revealed.results.map((r) => r.color).sort()).toEqual(['#00ff00', '#ff0000']);
+
+      // Nobody plays the second round: nothing scored, then the final scores
+      const finished = anaSees((u) => u.view.phase === 'finished');
+      expect((await finished).view.playerCount).toBe(2);
+    }, 10_000);
   });
 
   describe('werewolf', () => {

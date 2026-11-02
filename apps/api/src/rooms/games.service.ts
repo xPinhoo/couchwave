@@ -2,15 +2,19 @@ import {
   DRAW_WORDS,
   PHONE_PHRASES,
   QUESTION_BANKS,
+  color,
   dealRoles,
   draw,
   phone,
+  pickColorPuzzles,
   pickQuestions,
   planChains,
   planTurns,
   shuffle,
   trivia,
   werewolf,
+  type ColorInput,
+  type ColorState,
   type DrawState,
   type PhoneInput,
   type PhoneState,
@@ -21,6 +25,8 @@ import {
 import type { GameSetup, HostView, PlayerView, Stroke } from '@couchwave/shared';
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  COLOR_COUNTDOWN_SECONDS,
+  COLOR_REVEAL_FACTOR,
   DRAW_CHOOSE_SECONDS,
   GAME_CONFIG,
   PHONE_GUESS_SECONDS,
@@ -36,6 +42,7 @@ import {
 /** A game in progress. Draw & Guess also keeps the drawing of the current turn. */
 export type RunningGame =
   | { id: 'trivia'; state: TriviaState }
+  | { id: 'color'; state: ColorState }
   | { id: 'draw'; state: DrawState; strokes: Stroke[]; pointCount: number }
   | { id: 'phone'; state: PhoneState }
   | { id: 'werewolf'; state: WerewolfState };
@@ -48,6 +55,8 @@ export function hostView(game: RunningGame): HostView {
   switch (game.id) {
     case 'trivia':
       return trivia.hostView(game.state);
+    case 'color':
+      return color.hostView(game.state);
     case 'draw':
       return draw.hostView(game.state);
     case 'phone':
@@ -61,6 +70,8 @@ export function playerView(game: RunningGame, playerId: string): PlayerView {
   switch (game.id) {
     case 'trivia':
       return trivia.playerView(game.state, playerId);
+    case 'color':
+      return color.playerView(game.state, playerId);
     case 'draw':
       return draw.playerView(game.state, playerId);
     case 'phone':
@@ -73,7 +84,7 @@ export function playerView(game: RunningGame, playerId: string): PlayerView {
 export const isOver = (game: RunningGame): boolean => game.state.phase === 'finished';
 
 export const minPlayers = (gameId: GameSetup['gameId']): number =>
-  ({ trivia, draw, phone, werewolf })[gameId].minPlayers;
+  ({ trivia, color, draw, phone, werewolf })[gameId].minPlayers;
 
 /**
  * Holds the running game of each room. Methods that change a game return it only when
@@ -107,6 +118,21 @@ export class GamesService {
         now,
       );
       game = { id: 'trivia', state };
+    } else if (setup.gameId === 'color') {
+      const { category, rounds, secondsToPick } = setup.options;
+      const count = Math.min(rounds, this.config.maxQuestions);
+      const state = color.init(
+        playerIds,
+        {
+          category,
+          puzzleIds: pickColorPuzzles(category, count, this.random),
+          countdownMs: COLOR_COUNTDOWN_SECONDS * msPerSecond,
+          pickMs: secondsToPick * msPerSecond,
+          revealMs: revealMs * COLOR_REVEAL_FACTOR,
+        },
+        now,
+      );
+      game = { id: 'color', state };
     } else if (setup.gameId === 'phone') {
       const { secondsToDraw, language } = setup.options;
       const state = phone.init(
@@ -172,6 +198,15 @@ export class GamesService {
     );
   }
 
+  /** Guess the Color: a colour, or locking it in. */
+  colorInput(roomCode: string, playerId: string, input: ColorInput, now: number) {
+    return this.update(roomCode, (game) =>
+      game.id === 'color'
+        ? { ...game, state: color.onInput(game.state, playerId, input, now) }
+        : game,
+    );
+  }
+
   /** Draw & Guess: the artist picks a word. */
   chooseWord(roomCode: string, playerId: string, index: number, now: number) {
     return this.updateDraw(roomCode, (state) =>
@@ -209,6 +244,8 @@ export class GamesService {
       switch (game.id) {
         case 'trivia':
           return { ...game, state: trivia.onTick(game.state, now) };
+        case 'color':
+          return { ...game, state: color.onTick(game.state, now) };
         case 'draw':
           return this.withDrawState(game, draw.onTick(game.state, now));
         case 'phone':

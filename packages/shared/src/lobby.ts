@@ -64,7 +64,7 @@ export type Reaction = (typeof REACTIONS)[number];
 export const REACTION_COOLDOWN_MS = 300;
 
 /** The games that can be played (the library also lists some that are coming soon). */
-export type GameId = 'trivia' | 'draw' | 'phone' | 'werewolf';
+export type GameId = 'trivia' | 'color' | 'draw' | 'phone' | 'werewolf';
 
 /** Library tabs: games grouped by how they play. */
 export const GAME_CATEGORIES = [
@@ -92,6 +92,16 @@ export const GAMES: readonly GameInfo[] = [
     name: 'Quick-fire trivia',
     emoji: '🧠',
     description: 'Answer fast for more points, but wrong answers cost you.',
+    category: 'quiz',
+    available: true,
+    minPlayers: 1,
+  },
+  {
+    id: 'color',
+    name: 'Guess the Color',
+    emoji: '🌈',
+    description:
+      'Famous things with their colour missing. Mix it from memory, as close as you can.',
     category: 'quiz',
     available: true,
     minPlayers: 1,

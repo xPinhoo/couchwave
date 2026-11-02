@@ -1,4 +1,7 @@
 import {
+  COLOR_CATEGORIES,
+  COLOR_ROUNDS_OPTIONS,
+  COLOR_SECONDS_OPTIONS,
   DRAW_ROUNDS_OPTIONS,
   DRAW_SECONDS_OPTIONS,
   PHONE_LANGUAGES,
@@ -8,10 +11,12 @@ import {
   TRIVIA_TOPICS,
   WEREWOLF_DISCUSS_OPTIONS,
   WEREWOLF_ROLES,
+  colorCategory,
   gameInfo,
   phoneLanguage,
   triviaTopic,
   werewolfRoleCounts,
+  type ColorOptions,
   type DrawOptions,
   type GameSetup,
   type LobbyState,
@@ -70,6 +75,8 @@ export function SetupScreen({
 
           {setup.gameId === 'trivia' ? (
             <TriviaSettings options={setup.options} onChange={onOptions} />
+          ) : setup.gameId === 'color' ? (
+            <ColorSettings options={setup.options} onChange={onOptions} />
           ) : setup.gameId === 'draw' ? (
             <DrawSettings options={setup.options} onChange={onOptions} />
           ) : setup.gameId === 'werewolf' ? (
@@ -197,6 +204,50 @@ function TriviaSettings({
   );
 }
 
+function ColorSettings({
+  options,
+  onChange,
+}: {
+  options: ColorOptions;
+  onChange: (options: ColorOptions) => void;
+}) {
+  const set = (change: Partial<ColorOptions>) => onChange({ ...options, ...change });
+  return (
+    <>
+      <Section label="Pictures">
+        {COLOR_CATEGORIES.map((category) => (
+          <Chip
+            key={category.id}
+            label={`${category.emoji} ${category.name}`}
+            selected={options.category === category.id}
+            onPress={() => set({ category: category.id })}
+          />
+        ))}
+      </Section>
+      <Section label="Rounds">
+        {COLOR_ROUNDS_OPTIONS.map((rounds) => (
+          <Chip
+            key={rounds}
+            label={String(rounds)}
+            selected={options.rounds === rounds}
+            onPress={() => set({ rounds })}
+          />
+        ))}
+      </Section>
+      <Section label="Time per picture">
+        {COLOR_SECONDS_OPTIONS.map((seconds) => (
+          <Chip
+            key={seconds}
+            label={`${seconds}s`}
+            selected={options.secondsToPick === seconds}
+            onPress={() => set({ secondsToPick: seconds })}
+          />
+        ))}
+      </Section>
+    </>
+  );
+}
+
 function DrawSettings({
   options,
   onChange,
@@ -315,6 +366,19 @@ function WerewolfRoles({ players }: { players: number }) {
 }
 
 function Summary({ setup }: { setup: GameSetup }) {
+  if (setup.gameId === 'color') {
+    const { category, rounds, secondsToPick } = setup.options;
+    const { emoji, name } = colorCategory(category);
+    return (
+      <View style={styles.summary}>
+        <Text style={styles.summaryEmoji}>{emoji}</Text>
+        <Text style={styles.title}>{name}</Text>
+        <Text style={styles.muted}>
+          {rounds} rounds · {secondsToPick}s each
+        </Text>
+      </View>
+    );
+  }
   if (setup.gameId === 'werewolf') {
     const { secondsToDiscuss, revealRoles } = setup.options;
     return (

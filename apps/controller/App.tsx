@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { initialRoomCode } from './src/config';
 import { StatusBanner } from './src/components/StatusBanner';
+import { ColorScreen } from './src/screens/ColorScreen';
 import { DrawScreen } from './src/screens/DrawScreen';
 import { JoinScreen } from './src/screens/JoinScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
@@ -23,6 +24,7 @@ export default function App() {
     answer,
     drawing,
     phone,
+    colorGame,
     werewolf,
     react,
     setReady,
@@ -46,6 +48,15 @@ export default function App() {
                 connected={state.connected}
                 isLeader={state.lobby.leaderId === state.playerId}
                 onAnswer={answer}
+                onEnd={() => void leader.endGame()}
+                onPlayAgain={() => void leader.playAgain()}
+              />
+            ) : isGame(game, 'color') ? (
+              <ColorScreen
+                game={game}
+                connected={state.connected}
+                isLeader={state.lobby.leaderId === state.playerId}
+                actions={colorGame}
                 onEnd={() => void leader.endGame()}
                 onPlayAgain={() => void leader.playAgain()}
               />

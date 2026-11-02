@@ -16,7 +16,7 @@ export interface GameConfig {
   revealMs: number;
   /** How long one of the games' "seconds" lasts. */
   msPerSecond: number;
-  /** Upper bound on the number of trivia questions, whatever the host picked. */
+  /** Upper bound on the rounds of trivia and Guess the Color, whatever the host picked. */
   maxQuestions: number;
 }
 
@@ -28,6 +28,10 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
 
 /** The "get ready" countdown before trivia's first question. */
 export const TRIVIA_COUNTDOWN_SECONDS = 5;
+
+/** Guess the Color: the "get ready", and how much longer the reveal stays up than usual. */
+export const COLOR_COUNTDOWN_SECONDS = 5;
+export const COLOR_REVEAL_FACTOR = 1.6;
 
 /** How long the artist has to pick a word in Draw & Guess. */
 export const DRAW_CHOOSE_SECONDS = 15;

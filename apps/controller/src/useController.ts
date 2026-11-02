@@ -206,6 +206,15 @@ export function useController() {
     [],
   );
 
+  /** Guess the Color. The colour is fire and forget; only locking in tells the others. */
+  const colorGame = useMemo(
+    () => ({
+      pick: (color: string) => socketRef.current?.emit('color:pick', { color }),
+      lock: () => void socketRef.current?.emitWithAck('color:lock'),
+    }),
+    [],
+  );
+
   /** Werewolf: picks, votes and "ready". The server's next update shows the result. */
   const werewolf = useMemo(
     () => ({
@@ -278,6 +287,7 @@ export function useController() {
     answer,
     drawing,
     phone,
+    colorGame,
     werewolf,
     react,
     setReady,

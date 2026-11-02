@@ -46,6 +46,7 @@ describe('Library', () => {
     const cards = within(screen.getByRole('list', { name: 'Games' })).getAllByRole('listitem');
     expect(cards.map((card) => card.querySelector('h2')?.textContent)).toEqual([
       'Quick-fire trivia',
+      'Guess the Color',
     ]);
     expect(cards[0]).not.toHaveAttribute('aria-current');
   });

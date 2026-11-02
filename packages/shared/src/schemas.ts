@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+  COLOR_CATEGORIES,
+  COLOR_ROUNDS_OPTIONS,
+  COLOR_SECONDS_OPTIONS,
+  HEX_COLOR,
+  type ColorCategory,
+} from './color.js';
 import { PLAYER_NAME_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from './constants.js';
 import {
   DRAW_COLORS,
@@ -235,3 +242,20 @@ export const werewolfPickSchema = z.object({
 });
 
 export type WerewolfPickPayload = z.input<typeof werewolfPickSchema>;
+
+const colorCategoryIds = COLOR_CATEGORIES.map((category) => category.id) as [
+  ColorCategory,
+  ...ColorCategory[],
+];
+
+export const colorOptionsSchema = z.object({
+  category: z.enum(colorCategoryIds),
+  rounds: oneOf(COLOR_ROUNDS_OPTIONS),
+  secondsToPick: oneOf(COLOR_SECONDS_OPTIONS),
+});
+
+export const colorPickSchema = z.object({
+  color: z.string().regex(HEX_COLOR, 'Not a colour'),
+});
+
+export type ColorPickPayload = z.input<typeof colorPickSchema>;

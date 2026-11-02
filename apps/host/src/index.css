@@ -1313,6 +1313,95 @@ a {
   }
 }
 
+/* ── Guess the Color ──────────────────────────────────────────────────────── */
+
+.color-stage {
+  display: grid;
+  place-content: center;
+  align-items: center;
+  gap: 2rem 3rem;
+}
+.color-stage.revealed {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  place-content: center stretch;
+}
+.color-picture {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  margin: 0;
+  text-align: center;
+}
+.color-picture img {
+  display: block;
+  width: min(36rem, 60vh, 90vw);
+  aspect-ratio: 3 / 2;
+  padding: 1rem;
+  border-radius: 20px;
+  /* A neutral card, so nothing around it tints the colour you're judging */
+  background: #f2f2f2;
+  box-sizing: border-box;
+}
+.color-picture h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+}
+.color-picture .hint {
+  margin: 0.25rem 0 0;
+  font-size: 1.25rem;
+  word-break: normal;
+}
+.color-answer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.color-swatch {
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid #ffffff55;
+  border-radius: 10px;
+}
+.color-swatch.none {
+  background: var(--surface);
+}
+.color-results {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.color-results li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.color-result-who {
+  display: grid;
+  gap: 0.15rem;
+}
+.color-result-who code {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.color-accuracy {
+  color: var(--gold);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
 /* ── Werewolf ─────────────────────────────────────────────────────────────── */
 
 .wolf {
@@ -1478,5 +1567,9 @@ a {
 
   .wolf {
     padding: 1rem;
+  }
+
+  .color-stage.revealed {
+    grid-template-columns: 1fr;
   }
 }

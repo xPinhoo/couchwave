@@ -13,6 +13,8 @@ import {
   REACTION_COOLDOWN_MS,
   answerSchema,
   chooseWordSchema,
+  colorOptionsSchema,
+  colorPickSchema,
   drawOptionsSchema,
   guessSchema,
   joinRoomSchema,
@@ -328,6 +330,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
 
     const schema = {
       trivia: triviaOptionsSchema,
+      color: colorOptionsSchema,
       draw: drawOptionsSchema,
       phone: phoneOptionsSchema,
       werewolf: werewolfOptionsSchema,
@@ -381,6 +384,36 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     if (this.games.answer(roomCode, playerId, parsed.data.choice, Date.now())) {
       this.broadcastGame(roomCode);
     }
+    return ok;
+  }
+
+  // ── Guess the Color ────────────────────────────────────────────────────────
+
+  /** Only the sender sees their colour, so this isn't broadcast. */
+  @SubscribeMessage('color:pick')
+  handleColorPick(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): void {
+    const { roomCode, role, playerId } = socket.data;
+    const parsed = colorPickSchema.safeParse(body);
+    if (!roomCode || role !== 'player' || !playerId || !parsed.success) return;
+    this.games.colorInput(
+      roomCode,
+      playerId,
+      { type: 'pick', color: parsed.data.color },
+      Date.now(),
+    );
+  }
+
+  @SubscribeMessage('color:lock')
+  handleColorLock(@ConnectedSocket() socket: GameSocket): Result<null> {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return { ok: false, error: 'NOT_A_PLAYER' };
+    if (this.games.get(roomCode)?.id !== 'color') return { ok: false, error: 'NO_GAME' };
+
+    // Nothing mixed yet, already locked in, or too late
+    if (!this.games.colorInput(roomCode, playerId, { type: 'lock' }, Date.now())) {
+      return { ok: false, error: 'WRONG_PHASE' };
+    }
+    this.broadcastGame(roomCode);
     return ok;
   }
 

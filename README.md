@@ -83,6 +83,22 @@ ticks like a clock at 3, 2, 1 (a sound made in the browser, no audio files).
   same settings or go back to the games.
 - **Questions:** 32 hand-written questions per topic, shuffled per game (answers too).
 
+**Guess the Color**
+
+- **Setup:** the host picks the pictures (Characters, Things, Flags, Brands or a bit of
+  everything), 5/10/15 rounds and 15/20/30/45 seconds per picture.
+- **Play:** the TV shows something famous with its main colour replaced by a checker pattern,
+  like "Mario's cap" or "Japan's flag". Each phone has a colour palette: drag across it for hue
+  and lightness, and along a bar for strength, with the hex code shown as you go. Players can
+  lock in early; otherwise whatever they mixed when time runs out counts.
+- **Scoring:** up to 1000 points per round for how close the colour is, measured by how
+  different the two look to the eye (the distance in the Lab colour space) rather than by
+  their hex digits. No colour scores nothing.
+- **Reveal and end:** the picture fills in with the real colour, next to everyone's colour, hex
+  code and % close. A podium at the end, as in trivia.
+- **Pictures:** 63 simple SVGs drawn for the game. Characters and brands are plain original
+  shapes named on screen, not their real artwork. The answers stay on the server until the reveal.
+
 **Draw & Guess** (2+ players)
 
 - **Setup:** 45/60/90 seconds to draw and 1–3 rounds; everyone draws once per round.
@@ -197,7 +213,7 @@ Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
 2. **browser-tests**: Playwright opens a TV and two phones in Chromium against the built apps
-   and plays a full game of trivia, Draw & Guess, Drawing Phone and Werewolf. On failure the report and traces are uploaded as an
+   and plays a full game of trivia, Guess the Color, Draw & Guess, Drawing Phone and Werewolf. On failure the report and traces are uploaded as an
    artifact (open a trace with `npx playwright show-trace`).
 3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
@@ -312,5 +328,6 @@ in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
 - [x] **M6a** Draw & Guess: live drawing from the phone to the TV, guesses, hints
 - [x] **M6b** Drawing Phone: write, draw and guess in chains, with a paint pad and a reveal
 - [x] **M6c** Werewolf: secret roles, night picks for every role, a village vote
-- [ ] **M6d** More games: Media Genius, bluff
+- [x] **M6d** Guess the Color: mix a famous thing's missing colour, scored by closeness
+- [ ] **M6e** More games: Media Genius, bluff
 - [ ] **M7** Redis-backed rooms, load testing, observability

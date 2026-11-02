@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { ColorHost } from '../components/ColorHost';
 import { DrawHost } from '../components/DrawHost';
 import { Library } from '../components/Library';
 import { Lobby } from '../components/Lobby';
@@ -46,6 +47,8 @@ export function RoomPage() {
         <>
           {lobby.status === 'playing' && game && isGame(game, 'trivia') ? (
             <TriviaHost game={game} lobby={lobby} />
+          ) : lobby.status === 'playing' && game && isGame(game, 'color') ? (
+            <ColorHost game={game} lobby={lobby} />
           ) : lobby.status === 'playing' && game && isGame(game, 'draw') ? (
             <DrawHost game={game} lobby={lobby} strokes={strokes} />
           ) : lobby.status === 'playing' && game && isGame(game, 'phone') ? (

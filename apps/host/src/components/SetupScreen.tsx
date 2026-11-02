@@ -1,4 +1,5 @@
 import {
+  colorCategory,
   gameInfo,
   phoneLanguage,
   triviaTopic,
@@ -13,6 +14,15 @@ interface SetupScreenProps {
 
 /** The settings as label/value rows, for whichever game is being set up. */
 function settingRows(setup: GameSetup): { label: string; value: string }[] {
+  if (setup.gameId === 'color') {
+    const { category, rounds, secondsToPick } = setup.options;
+    const { emoji, name } = colorCategory(category);
+    return [
+      { label: 'Pictures', value: `${emoji} ${name}` },
+      { label: 'Rounds', value: String(rounds) },
+      { label: 'Time per picture', value: `${secondsToPick}s` },
+    ];
+  }
   if (setup.gameId === 'werewolf') {
     const { secondsToDiscuss, revealRoles } = setup.options;
     return [

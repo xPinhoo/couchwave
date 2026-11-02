@@ -1,3 +1,4 @@
+import type { ColorHostView, ColorOptions, ColorPlayerView } from './color.js';
 import type { DrawHostView, DrawOptions, DrawPlayerView, Stroke } from './draw.js';
 import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from './games.js';
 import type { LibraryCursor } from './library.js';
@@ -7,6 +8,7 @@ import type { WerewolfHostView, WerewolfOptions, WerewolfPlayerView } from './we
 import type {
   AnswerPayload,
   ChooseWordPayload,
+  ColorPickPayload,
   GuessPayload,
   JoinRoomPayload,
   KickPlayerPayload,
@@ -55,15 +57,18 @@ export type RoomStatus = 'lobby' | 'library' | 'setup' | 'playing';
 /** The pre-game screen: the host's settings for the chosen game and who has pressed Ready. */
 export type GameSetup =
   | { gameId: 'trivia'; options: TriviaOptions; readyIds: string[] }
+  | { gameId: 'color'; options: ColorOptions; readyIds: string[] }
   | { gameId: 'draw'; options: DrawOptions; readyIds: string[] }
   | { gameId: 'phone'; options: PhoneOptions; readyIds: string[] }
   | { gameId: 'werewolf'; options: WerewolfOptions; readyIds: string[] };
 
 /** What the TV shows during a game. */
-export type HostView = TriviaHostView | DrawHostView | PhoneHostView | WerewolfHostView;
+export type HostView =
+  TriviaHostView | ColorHostView | DrawHostView | PhoneHostView | WerewolfHostView;
 
 /** What one phone shows during a game. */
-export type PlayerView = TriviaPlayerView | DrawPlayerView | PhonePlayerView | WerewolfPlayerView;
+export type PlayerView =
+  TriviaPlayerView | ColorPlayerView | DrawPlayerView | PhonePlayerView | WerewolfPlayerView;
 
 export interface LobbyState {
   roomCode: string;
@@ -163,6 +168,10 @@ export interface ClientToServerEvents {
   'phone:done': (payload: PhoneDonePayload, ack: (res: Result<null>) => void) => void;
   /** Drawing Phone, leader only, during the reveal: show the next link now. */
   'phone:next': (ack: (res: Result<null>) => void) => void;
+  /** Guess the Color: the colour mixed so far; what's there when time runs out counts. */
+  'color:pick': (payload: ColorPickPayload) => void;
+  /** Guess the Color: final answer. Everyone locked in ends the round early. */
+  'color:lock': (ack: (res: Result<null>) => void) => void;
   /**
    * Werewolf: tonight's pick (the werewolves' victim, who the seer looks into, who the
    * doctor protects, or who a villager suspects), or a vote by day, where null skips.

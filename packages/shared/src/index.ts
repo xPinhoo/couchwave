@@ -1,3 +1,5 @@
+export * from './color.js';
+export * from './colorArt.js';
 export * from './constants.js';
 export * from './draw.js';
 export * from './events.js';
