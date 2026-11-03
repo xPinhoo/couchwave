@@ -42,7 +42,9 @@ export interface ColorState {
 /** What the exact colour scores. */
 export const MAX_COLOR_POINTS = 1_000;
 /** Colours this different (see `colorDifference`) or more score nothing. */
-const ZERO_POINTS_DIFFERENCE = 66;
+const ZERO_POINTS_DIFFERENCE = 85;
+/** Above 1, so a near miss loses little and the score falls away faster for a wrong colour. */
+const SCORE_CURVE = 1.5;
 
 /** Picks `count` random pictures from a category ("mix" means all of them). */
 export function pickColorPuzzles(
@@ -82,7 +84,7 @@ export function colorDifference(a: string, b: string): number {
 /** How close a guess is, from 0 to 100. */
 export function colorAccuracy(guess: string, answer: string): number {
   const away = colorDifference(guess, answer) / ZERO_POINTS_DIFFERENCE;
-  return Math.max(0, Math.round((1 - away) * 100));
+  return Math.max(0, Math.round((1 - away ** SCORE_CURVE) * 100));
 }
 
 const puzzleId = (state: ColorState) => state.settings.puzzleIds[state.round] ?? '';

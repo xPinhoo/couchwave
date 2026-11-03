@@ -27,9 +27,9 @@ interface ColorScreenProps {
 const START: Hsl = { h: 180, s: 100, l: 50 };
 
 function verdict(accuracy: number) {
-  if (accuracy >= 95) return '🎯 Spot on!';
-  if (accuracy >= 80) return '🔥 So close!';
-  if (accuracy >= 55) return '👍 Not bad';
+  if (accuracy >= 98) return '🎯 Spot on!';
+  if (accuracy >= 85) return '🔥 So close!';
+  if (accuracy >= 60) return '👍 Not bad';
   if (accuracy >= 25) return '🤔 Hmm, not really';
   return '🙈 Way off';
 }

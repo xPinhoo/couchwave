@@ -62,6 +62,13 @@ describe('colorAccuracy', () => {
     expect(nearby).toBeGreaterThan(50);
     expect(wrong).toBe(0);
   });
+
+  it('is kind to the right kind of colour, but not to a different one', () => {
+    expect(colorAccuracy('#0043ed', '#0f52ba')).toBeGreaterThan(60);
+    expect(colorAccuracy('#fe1200', '#d6212f')).toBeGreaterThan(70);
+    expect(colorAccuracy('#ff8000', '#bc002d')).toBeLessThan(50);
+    expect(colorAccuracy('#ffd800', '#bc002d')).toBe(0);
+  });
 });
 
 describe('Guess the Color', () => {
