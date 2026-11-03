@@ -11,6 +11,7 @@ import { LobbyScreen } from './src/screens/LobbyScreen';
 import { PhoneScreen } from './src/screens/PhoneScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { TriviaScreen } from './src/screens/TriviaScreen';
+import { LiarsScreen } from './src/screens/LiarsScreen';
 import { WerewolfScreen } from './src/screens/WerewolfScreen';
 import { colors } from './src/theme';
 import { isGame, useController } from './src/useController';
@@ -26,6 +27,7 @@ export default function App() {
     phone,
     colorGame,
     werewolf,
+    liarsGame,
     react,
     setReady,
     leader,
@@ -87,6 +89,16 @@ export default function App() {
                 connected={state.connected}
                 isLeader={state.lobby.leaderId === state.playerId}
                 actions={werewolf}
+                onEnd={() => void leader.endGame()}
+                onPlayAgain={() => void leader.playAgain()}
+              />
+            ) : isGame(game, 'liars') ? (
+              <LiarsScreen
+                game={game}
+                players={state.lobby.players}
+                connected={state.connected}
+                isLeader={state.lobby.leaderId === state.playerId}
+                actions={liarsGame}
                 onEnd={() => void leader.endGame()}
                 onPlayAgain={() => void leader.playAgain()}
               />

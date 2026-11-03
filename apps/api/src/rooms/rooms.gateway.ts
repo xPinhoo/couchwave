@@ -6,6 +6,7 @@ import {
   toLobbyState,
   type PhoneInput,
   type Room,
+  type LiarsInput,
   type WerewolfInput,
 } from '@couchwave/engine';
 import {
@@ -20,6 +21,8 @@ import {
   joinRoomSchema,
   kickPlayerSchema,
   libraryMoveSchema,
+  liarsOptionsSchema,
+  liarsPlaySchema,
   phoneDoneSchema,
   phoneOptionsSchema,
   phoneTextSchema,
@@ -334,6 +337,7 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
       draw: drawOptionsSchema,
       phone: phoneOptionsSchema,
       werewolf: werewolfOptionsSchema,
+      liars: liarsOptionsSchema,
     }[room.setup.gameId];
     const parsed = schema.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
@@ -562,6 +566,23 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
     return this.werewolfInput(socket, { type: 'ready' });
   }
 
+  // ── Liar's Table ───────────────────────────────────────────────────────────
+
+  @SubscribeMessage('liars:play')
+  handleLiarsPlay(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Result<null> {
+    const parsed = liarsPlaySchema.safeParse(body);
+    if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
+    return this.liarsInput(socket, { type: 'play', cardIds: parsed.data.cardIds });
+  }
+
+  @SubscribeMessage('liars:call')
+  handleLiarsCall(@ConnectedSocket() socket: GameSocket): Result<null> {
+    return this.liarsInput(socket, { type: 'call' });
+  }
+
   /** Ends the game (early or after the final scores) and goes back to the games library. */
   @SubscribeMessage('game:end')
   handleEnd(@ConnectedSocket() socket: GameSocket): Result<null> {
@@ -632,6 +653,20 @@ export class RoomsGateway implements OnGatewayDisconnect, OnModuleDestroy {
 
     // Picks that aren't allowed (the dead, the wrong phase, a werewolf for a werewolf) change nothing
     if (!this.games.werewolfInput(roomCode, playerId, input, Date.now())) {
+      return { ok: false, error: 'WRONG_PHASE' };
+    }
+    this.broadcastGame(roomCode);
+    return ok;
+  }
+
+  /** Passes a player's Liar's Table move on, and tells everyone when it changed something. */
+  private liarsInput(socket: GameSocket, input: LiarsInput): Result<null> {
+    const { roomCode, role, playerId } = socket.data;
+    if (!roomCode || role !== 'player' || !playerId) return { ok: false, error: 'NOT_A_PLAYER' };
+    if (this.games.get(roomCode)?.id !== 'liars') return { ok: false, error: 'NO_GAME' };
+
+    // Not your turn, cards you don't have, or nothing to call
+    if (!this.games.liarsInput(roomCode, playerId, input, Date.now())) {
       return { ok: false, error: 'WRONG_PHASE' };
     }
     this.broadcastGame(roomCode);

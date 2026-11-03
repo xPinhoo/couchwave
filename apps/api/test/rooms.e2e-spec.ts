@@ -10,6 +10,8 @@ import {
   type DrawHostView,
   type DrawPlayerView,
   type GameUpdate,
+  type LiarsHostView,
+  type LiarsPlayerView,
   type PhoneHostView,
   type PhonePlayerView,
   type SketchOp,
@@ -1088,6 +1090,88 @@ describe('Rooms (e2e)', () => {
       // Nobody plays the second round: nothing scored, then the final scores
       const finished = anaSees((u) => u.view.phase === 'finished');
       expect((await finished).view.playerCount).toBe(2);
+    }, 10_000);
+  });
+
+  describe("liar's table", () => {
+    type HostUpdate = GameUpdate<LiarsHostView>;
+    type PlayerUpdate = GameUpdate<LiarsPlayerView>;
+    const ok = { ok: true, data: null };
+
+    it('plays a game: hands stay private, and a call costs someone a life', async () => {
+      const { host, roomCode } = await createRoom();
+      const ana = await joinAs(roomCode, 'Ana');
+      const rui = await joinAs(roomCode, 'Rui');
+
+      // The second game of the third tab
+      await ana.client.emitWithAck('library:open');
+      await remote(ana.client, 'up', 'right', 'right', 'ok', 'down', 'right', 'ok');
+      expect(
+        await ana.client.emitWithAck('setup:options', { lives: 2, secondsPerTurn: 45 }),
+      ).toEqual(ok);
+      expect(
+        await ana.client.emitWithAck('setup:options', { lives: 4, secondsPerTurn: 45 } as never),
+      ).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
+
+      const hostSees = (match: (u: HostUpdate) => boolean) =>
+        waitFor<HostUpdate>(host, 'game:host', match);
+      const sees = (client: typeof host, match: (u: PlayerUpdate) => boolean) =>
+        waitFor<PlayerUpdate>(client, 'game:player', match);
+
+      const firstTurn = hostSees((u) => u.view.phase === 'turn');
+      const anaTurn = sees(ana.client, (u) => u.view.phase === 'turn');
+      const ruiTurn = sees(rui.client, (u) => u.view.phase === 'turn');
+      await rui.client.emitWithAck('setup:ready', { ready: true });
+      await ana.client.emitWithAck('setup:ready', { ready: true });
+
+      const { view } = await firstTurn;
+      const [anaView, ruiView] = [(await anaTurn).view, (await ruiTurn).view];
+      expect(view.playerIds).toHaveLength(2);
+      expect(Object.values(view.handCounts)).toEqual([5, 5]);
+      // The TV gets no cards, and each phone only its own
+      expect(JSON.stringify(view)).not.toContain('"rank"');
+      expect(anaView.hand).toHaveLength(5);
+      expect(anaView.hand.map((c) => c.id)).not.toEqual(ruiView.hand.map((c) => c.id));
+
+      const first = anaView.isMyTurn ? ana : rui;
+      const second = anaView.isMyTurn ? rui : ana;
+      const hand = anaView.isMyTurn ? anaView.hand : ruiView.hand;
+      const firstId = view.turnId!;
+      const secondId = view.playerIds.find((id) => id !== firstId)!;
+
+      // Only on your turn, only your own cards, and nothing to call yet
+      expect(await second.client.emitWithAck('liars:play', { cardIds: [0] })).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+      expect(await first.client.emitWithAck('liars:call')).toEqual({
+        ok: false,
+        error: 'WRONG_PHASE',
+      });
+      expect(await first.client.emitWithAck('liars:play', { cardIds: [] })).toEqual({
+        ok: false,
+        error: 'INVALID_PAYLOAD',
+      });
+
+      const played = hostSees((u) => u.view.lastPlay !== null);
+      expect(
+        await first.client.emitWithAck('liars:play', { cardIds: [hand[0]!.id, hand[1]!.id] }),
+      ).toEqual(ok);
+      expect((await played).view.lastPlay).toEqual({ playerId: firstId, count: 2 });
+      expect(JSON.stringify((await played).view)).not.toContain('"rank"');
+
+      const reveal = hostSees((u) => u.view.phase === 'reveal');
+      expect(await second.client.emitWithAck('liars:call')).toEqual(ok);
+      const flipped = (await reveal).view;
+      expect(flipped.reveal?.cards.map((c) => c.id)).toEqual([hand[0]!.id, hand[1]!.id]);
+      const loser = flipped.reveal!.lied ? firstId : secondId;
+      expect(flipped.reveal?.loserId).toBe(loser);
+      expect(flipped.lives[loser]).toBe(1);
+
+      // The loser starts the next hand
+      const { view: dealt } = await hostSees((u) => u.view.phase === 'deal');
+      expect(dealt.round).toBe(2);
+      expect(dealt.turnId).toBe(loser);
     }, 10_000);
   });
 

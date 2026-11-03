@@ -64,7 +64,7 @@ export type Reaction = (typeof REACTIONS)[number];
 export const REACTION_COOLDOWN_MS = 300;
 
 /** The games that can be played (the library also lists some that are coming soon). */
-export type GameId = 'trivia' | 'color' | 'draw' | 'phone' | 'werewolf';
+export type GameId = 'trivia' | 'color' | 'draw' | 'phone' | 'werewolf' | 'liars';
 
 /** Library tabs: games grouped by how they play. */
 export const GAME_CATEGORIES = [
@@ -141,6 +141,15 @@ export const GAMES: readonly GameInfo[] = [
     category: 'social',
     available: true,
     minPlayers: 4,
+  },
+  {
+    id: 'liars',
+    name: "Liar's Table",
+    emoji: '🤥',
+    description: 'Play your cards face down and swear they match. Believe it, or call "Liar!"',
+    category: 'social',
+    available: true,
+    minPlayers: 2,
   },
 ];
 

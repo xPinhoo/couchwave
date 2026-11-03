@@ -9,10 +9,20 @@ interface FinalScoresProps {
   leaderboard: LeaderboardEntry[];
   players: PublicPlayer[];
   leaderId: string | null;
+  /** Instead of "Final scores". */
+  title?: string;
+  /** For games that don't score points. */
+  formatScore?: (score: number) => string;
 }
 
 /** The end of any game: a podium for the top three, then everyone else. */
-export function FinalScores({ leaderboard, players, leaderId }: FinalScoresProps) {
+export function FinalScores({
+  leaderboard,
+  players,
+  leaderId,
+  title = 'Final scores',
+  formatScore = String,
+}: FinalScoresProps) {
   const playerOf: PlayerLookup = (id) => players.find((p) => p.id === id);
   const leader = leaderId ? (playerOf(leaderId)?.name ?? null) : null;
   const top = leaderboard.slice(0, 3);
@@ -20,7 +30,7 @@ export function FinalScores({ leaderboard, players, leaderId }: FinalScoresProps
 
   return (
     <main className="final">
-      <p className="eyebrow">Final scores</p>
+      <p className="eyebrow">{title}</p>
 
       <ol className="podium" aria-label="Podium">
         {PODIUM_ORDER.map((place) => {
@@ -31,7 +41,7 @@ export function FinalScores({ leaderboard, players, leaderId }: FinalScoresProps
             <li key={entry.playerId} className={`step place-${place + 1}`}>
               {player && <PlayerAvatar avatar={player.avatar} size={place === 0 ? 96 : 72} />}
               <span className="podium-name">{player?.name ?? 'Player'}</span>
-              <span className="score">{entry.score}</span>
+              <span className="score">{formatScore(entry.score)}</span>
               <span className="block" aria-label={`Place ${place + 1}`}>
                 {place === 0 ? '🏆' : place + 1}
               </span>
@@ -46,7 +56,7 @@ export function FinalScores({ leaderboard, players, leaderId }: FinalScoresProps
             <li key={entry.playerId}>
               <span className="place">{i + 4}</span>
               <PlayerTag player={playerOf(entry.playerId)} />
-              <span className="score">{entry.score}</span>
+              <span className="score">{formatScore(entry.score)}</span>
             </li>
           ))}
         </ol>

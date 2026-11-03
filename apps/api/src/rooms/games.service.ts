@@ -5,6 +5,7 @@ import {
   color,
   dealRoles,
   draw,
+  liars,
   phone,
   pickColorPuzzles,
   pickQuestions,
@@ -16,6 +17,8 @@ import {
   type ColorInput,
   type ColorState,
   type DrawState,
+  type LiarsInput,
+  type LiarsState,
   type PhoneInput,
   type PhoneState,
   type TriviaState,
@@ -29,6 +32,8 @@ import {
   COLOR_REVEAL_FACTOR,
   DRAW_CHOOSE_SECONDS,
   GAME_CONFIG,
+  LIARS_DEAL_SECONDS,
+  LIARS_REVEAL_FACTOR,
   PHONE_GUESS_SECONDS,
   PHONE_WRITE_SECONDS,
   TRIVIA_COUNTDOWN_SECONDS,
@@ -45,7 +50,8 @@ export type RunningGame =
   | { id: 'color'; state: ColorState }
   | { id: 'draw'; state: DrawState; strokes: Stroke[]; pointCount: number }
   | { id: 'phone'; state: PhoneState }
-  | { id: 'werewolf'; state: WerewolfState };
+  | { id: 'werewolf'; state: WerewolfState }
+  | { id: 'liars'; state: LiarsState };
 
 /** Caps on one turn's drawing, so a misbehaving client can't fill the server's memory. */
 export const MAX_STROKES_PER_TURN = 2_000;
@@ -63,6 +69,8 @@ export function hostView(game: RunningGame): HostView {
       return phone.hostView(game.state);
     case 'werewolf':
       return werewolf.hostView(game.state);
+    case 'liars':
+      return liars.hostView(game.state);
   }
 }
 
@@ -78,13 +86,15 @@ export function playerView(game: RunningGame, playerId: string): PlayerView {
       return phone.playerView(game.state, playerId);
     case 'werewolf':
       return werewolf.playerView(game.state, playerId);
+    case 'liars':
+      return liars.playerView(game.state, playerId);
   }
 }
 
 export const isOver = (game: RunningGame): boolean => game.state.phase === 'finished';
 
 export const minPlayers = (gameId: GameSetup['gameId']): number =>
-  ({ trivia, color, draw, phone, werewolf })[gameId].minPlayers;
+  ({ trivia, color, draw, phone, werewolf, liars })[gameId].minPlayers;
 
 /**
  * Holds the running game of each room. Methods that change a game return it only when
@@ -148,6 +158,20 @@ export class GamesService {
         now,
       );
       game = { id: 'phone', state };
+    } else if (setup.gameId === 'liars') {
+      const { lives, secondsPerTurn } = setup.options;
+      const state = liars.init(
+        playerIds,
+        {
+          seed: Math.floor(this.random() * 2 ** 32),
+          lives,
+          dealMs: LIARS_DEAL_SECONDS * msPerSecond,
+          turnMs: secondsPerTurn * msPerSecond,
+          revealMs: revealMs * LIARS_REVEAL_FACTOR,
+        },
+        now,
+      );
+      game = { id: 'liars', state };
     } else if (setup.gameId === 'werewolf') {
       const { secondsToDiscuss, revealRoles } = setup.options;
       const news = WEREWOLF_NEWS_SECONDS * msPerSecond;
@@ -239,6 +263,15 @@ export class GamesService {
     );
   }
 
+  /** Liar's Table: playing cards, or calling the last player a liar. */
+  liarsInput(roomCode: string, playerId: string, input: LiarsInput, now: number) {
+    return this.update(roomCode, (game) =>
+      game.id === 'liars'
+        ? { ...game, state: liars.onInput(game.state, playerId, input, now) }
+        : game,
+    );
+  }
+
   tick(roomCode: string, now: number) {
     return this.update(roomCode, (game) => {
       switch (game.id) {
@@ -252,6 +285,8 @@ export class GamesService {
           return { ...game, state: phone.onTick(game.state, now) };
         case 'werewolf':
           return { ...game, state: werewolf.onTick(game.state, now) };
+        case 'liars':
+          return { ...game, state: liars.onTick(game.state, now) };
       }
     });
   }

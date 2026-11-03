@@ -225,6 +225,15 @@ export function useController() {
     [],
   );
 
+  /** Liar's Table: the server's next update shows the result. */
+  const liarsGame = useMemo(
+    () => ({
+      play: (cardIds: number[]) => void socketRef.current?.emitWithAck('liars:play', { cardIds }),
+      call: () => void socketRef.current?.emitWithAck('liars:call'),
+    }),
+    [],
+  );
+
   /** Runs a host-only action and surfaces its error, if any. */
   const leaderAction = useCallback(
     async (send: (socket: ControllerSocket) => Promise<{ ok: boolean; error?: ErrorCode }>) => {
@@ -289,6 +298,7 @@ export function useController() {
     phone,
     colorGame,
     werewolf,
+    liarsGame,
     react,
     setReady,
     leader,

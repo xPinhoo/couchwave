@@ -35,6 +35,7 @@ import {
   SKETCH_SHAPES,
   type PhoneLanguage,
 } from './phone.js';
+import { LIAR_LIVES_OPTIONS, LIAR_MAX_PLAY, LIAR_SECONDS_OPTIONS } from './liars.js';
 import { AVATAR_PHOTO_MAX_CHARS, AVATAR_PRESETS, REACTIONS } from './lobby.js';
 import { WEREWOLF_DISCUSS_OPTIONS } from './werewolf.js';
 
@@ -259,3 +260,14 @@ export const colorPickSchema = z.object({
 });
 
 export type ColorPickPayload = z.input<typeof colorPickSchema>;
+
+export const liarsOptionsSchema = z.object({
+  lives: oneOf(LIAR_LIVES_OPTIONS),
+  secondsPerTurn: oneOf(LIAR_SECONDS_OPTIONS),
+});
+
+export const liarsPlaySchema = z.object({
+  cardIds: z.array(z.number().int().nonnegative()).min(1).max(LIAR_MAX_PLAY),
+});
+
+export type LiarsPlayPayload = z.input<typeof liarsPlaySchema>;

@@ -46,5 +46,9 @@ export const WEREWOLF_NIGHT_SECONDS = 40;
 export const WEREWOLF_VOTE_SECONDS = 40;
 export const WEREWOLF_NEWS_SECONDS = 8;
 
+/** Liar's Table: time to read the new table card, and how much longer the flip stays up. */
+export const LIARS_DEAL_SECONDS = 4;
+export const LIARS_REVEAL_FACTOR = 1.6;
+
 /** How often running games are checked for expired timers. */
 export const GAME_TICK_MS = 250;

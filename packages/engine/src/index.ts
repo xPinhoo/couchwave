@@ -2,6 +2,7 @@ export * from './game.js';
 export * from './games/color/color.js';
 export * from './games/draw/draw.js';
 export * from './games/draw/words.js';
+export * from './games/liars/liars.js';
 export * from './games/phone/phone.js';
 export * from './games/phone/phrases.js';
 export * from './games/trivia/questions/index.js';

@@ -1402,6 +1402,147 @@ a {
   font-weight: 800;
 }
 
+/* ── Liar's Table ─────────────────────────────────────────────────────────── */
+
+.liars {
+  background: radial-gradient(ellipse at 50% 45%, #1d5c46, #0f2f2a 55%, var(--bg) 100%);
+}
+.liars-stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4rem;
+  animation: fade-in 400ms ease-out;
+}
+.liars-table-card {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+.liars-table-card .liar-card {
+  width: 9rem;
+  height: 13rem;
+  font-size: 5rem;
+}
+.liars-table-card .hint {
+  max-width: 12rem;
+  word-break: normal;
+}
+.liars-middle {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+.liars-middle h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+}
+.liars-middle .hint {
+  margin: 0;
+  font-size: 1.25rem;
+  word-break: normal;
+}
+.liars-headline {
+  margin: 0;
+  color: var(--gold);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.liars-lied {
+  color: var(--danger);
+}
+.liars-truth {
+  color: #46d39a;
+}
+.liar-cards {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.liar-card {
+  display: grid;
+  place-items: center;
+  width: 7rem;
+  height: 10rem;
+  border: 4px solid #d9d3f5;
+  border-radius: 14px;
+  font-size: 3.5rem;
+  font-weight: 800;
+}
+.liar-card.face {
+  background: #f4f1ff;
+  color: #1c1633;
+}
+.liar-card.back {
+  border-color: #fff3;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--accent),
+    var(--accent) 8px,
+    #5b3fd6 8px,
+    #5b3fd6 16px
+  );
+}
+.liar-card.flip {
+  animation: liar-flip 500ms ease-out;
+}
+.liar-card.honest {
+  border-color: #46d39a;
+}
+.liar-card.wrong {
+  border-color: var(--danger);
+  box-shadow: 0 0 24px #ff6b6b99;
+}
+@keyframes liar-flip {
+  from {
+    transform: rotateY(90deg);
+  }
+  to {
+    transform: rotateY(0);
+  }
+}
+.liars-seats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.liars-seats li {
+  display: grid;
+  grid-auto-rows: auto;
+  align-content: start;
+  justify-items: center;
+  gap: 0.2rem;
+  min-width: 7rem;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.liars-seats li.turn {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px #f5c54266;
+}
+.liars-seats li.out {
+  opacity: 0.45;
+}
+.liars-seat-name {
+  font-weight: 700;
+}
+.liars-seats .hint {
+  font-size: 0.85rem;
+  word-break: normal;
+}
+
 /* ── Werewolf ─────────────────────────────────────────────────────────────── */
 
 .wolf {
@@ -1571,5 +1712,10 @@ a {
 
   .color-stage.revealed {
     grid-template-columns: 1fr;
+  }
+
+  .liars-stage {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }

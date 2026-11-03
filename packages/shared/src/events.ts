@@ -2,6 +2,7 @@ import type { ColorHostView, ColorOptions, ColorPlayerView } from './color.js';
 import type { DrawHostView, DrawOptions, DrawPlayerView, Stroke } from './draw.js';
 import type { GameUpdate, TriviaHostView, TriviaOptions, TriviaPlayerView } from './games.js';
 import type { LibraryCursor } from './library.js';
+import type { LiarsHostView, LiarsOptions, LiarsPlayerView } from './liars.js';
 import type { PhoneHostView, PhoneOptions, PhonePlayerView, SketchOp } from './phone.js';
 import type { Avatar, Reaction } from './lobby.js';
 import type { WerewolfHostView, WerewolfOptions, WerewolfPlayerView } from './werewolf.js';
@@ -12,6 +13,7 @@ import type {
   GuessPayload,
   JoinRoomPayload,
   KickPlayerPayload,
+  LiarsPlayPayload,
   LibraryMovePayload,
   PhoneDonePayload,
   PhoneTextPayload,
@@ -60,15 +62,21 @@ export type GameSetup =
   | { gameId: 'color'; options: ColorOptions; readyIds: string[] }
   | { gameId: 'draw'; options: DrawOptions; readyIds: string[] }
   | { gameId: 'phone'; options: PhoneOptions; readyIds: string[] }
-  | { gameId: 'werewolf'; options: WerewolfOptions; readyIds: string[] };
+  | { gameId: 'werewolf'; options: WerewolfOptions; readyIds: string[] }
+  | { gameId: 'liars'; options: LiarsOptions; readyIds: string[] };
 
 /** What the TV shows during a game. */
 export type HostView =
-  TriviaHostView | ColorHostView | DrawHostView | PhoneHostView | WerewolfHostView;
+  TriviaHostView | ColorHostView | DrawHostView | PhoneHostView | WerewolfHostView | LiarsHostView;
 
 /** What one phone shows during a game. */
 export type PlayerView =
-  TriviaPlayerView | ColorPlayerView | DrawPlayerView | PhonePlayerView | WerewolfPlayerView;
+  | TriviaPlayerView
+  | ColorPlayerView
+  | DrawPlayerView
+  | PhonePlayerView
+  | WerewolfPlayerView
+  | LiarsPlayerView;
 
 export interface LobbyState {
   roomCode: string;
@@ -179,6 +187,10 @@ export interface ClientToServerEvents {
   'wolf:pick': (payload: WerewolfPickPayload, ack: (res: Result<null>) => void) => void;
   /** Werewolf: "got it" on your role, or "let's vote" during the day. */
   'wolf:ready': (ack: (res: Result<null>) => void) => void;
+  /** Liar's Table: on your turn, play cards face down as the table card. */
+  'liars:play': (payload: LiarsPlayPayload, ack: (res: Result<null>) => void) => void;
+  /** Liar's Table: on your turn, call the last player a liar. */
+  'liars:call': (ack: (res: Result<null>) => void) => void;
 }
 
 /** Events broadcast by the server. */

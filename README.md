@@ -136,6 +136,22 @@ ticks like a clock at 3, 2, 1 (a sound made in the browser, no audio files).
 - **Reveal:** the TV goes through each chain link by link ("Rui got “A cat on a bus” and drew
   this"), then shows the original next to the final phrase. The host can skip ahead with Next.
 
+**Liar's Table** (2+ players)
+
+- **Setup:** 2/3/5 lives and 15/30/45 seconds per turn.
+- **A hand:** everyone gets 5 cards on their phone and the TV names a table card: Kings, Queens
+  or Aces. The deck has 6 of each and 2 jokers, which count as anything, with a second deck from
+  5 players.
+- **A turn:** play 1 to 3 cards face down, claiming they're all the table card, or call the last
+  player a liar. Time up plays one random card for you.
+- **A call:** the cards flip. Any wrong card costs the liar a life; an honest play costs the caller
+  one. Then a new hand, and whoever lost the life goes first.
+- **Out of cards:** you're safe for that hand unless your last play gets called. When nobody else
+  has cards to answer with, the game flips the last play itself: a lie still costs a life, and
+  nobody loses one for the truth.
+- **End:** the last player with lives wins. Hands stay on the server and each player's own phone,
+  and the cards on the table are only sent to anyone once they flip.
+
 **Werewolf** (4+ players)
 
 - **Setup:** 1/2/3/5 minutes to talk each day, and whether the dead's role is shown or kept
@@ -213,7 +229,7 @@ Every push to `main` runs the [CI/CD workflow](.github/workflows/ci.yml):
 
 1. **verify**: lint, format check, typecheck, unit tests, API e2e tests, build
 2. **browser-tests**: Playwright opens a TV and two phones in Chromium against the built apps
-   and plays a full game of trivia, Guess the Color, Draw & Guess, Drawing Phone and Werewolf. On failure the report and traces are uploaded as an
+   and plays a full game of trivia, Guess the Color, Draw & Guess, Drawing Phone, Werewolf and Liar's Table. On failure the report and traces are uploaded as an
    artifact (open a trace with `npx playwright show-trace`).
 3. **docker**: builds the API image from [`apps/api/Dockerfile`](apps/api/Dockerfile) on an
    ARM runner, the same architecture as the server
@@ -329,5 +345,6 @@ in `ci.yml`, `apps/host/.env.production` and the API's `CORS_ORIGINS`.
 - [x] **M6b** Drawing Phone: write, draw and guess in chains, with a paint pad and a reveal
 - [x] **M6c** Werewolf: secret roles, night picks for every role, a village vote
 - [x] **M6d** Guess the Color: mix a famous thing's missing colour, scored by closeness
-- [ ] **M6e** More games: Media Genius, bluff
+- [x] **M6e** Liar's Table: bluff with cards, call out liars, last one with lives wins
+- [ ] **M6f** More games: Media Genius, bluff
 - [ ] **M7** Redis-backed rooms, load testing, observability

@@ -4,6 +4,8 @@ import {
   COLOR_SECONDS_OPTIONS,
   DRAW_ROUNDS_OPTIONS,
   DRAW_SECONDS_OPTIONS,
+  LIAR_LIVES_OPTIONS,
+  LIAR_SECONDS_OPTIONS,
   PHONE_LANGUAGES,
   PHONE_SECONDS_OPTIONS,
   TRIVIA_LENGTH_OPTIONS,
@@ -19,6 +21,7 @@ import {
   type ColorOptions,
   type DrawOptions,
   type GameSetup,
+  type LiarsOptions,
   type LobbyState,
   type PhoneOptions,
   type TriviaOptions,
@@ -79,6 +82,8 @@ export function SetupScreen({
             <ColorSettings options={setup.options} onChange={onOptions} />
           ) : setup.gameId === 'draw' ? (
             <DrawSettings options={setup.options} onChange={onOptions} />
+          ) : setup.gameId === 'liars' ? (
+            <LiarsSettings options={setup.options} onChange={onOptions} />
           ) : setup.gameId === 'werewolf' ? (
             <WerewolfSettings options={setup.options} onChange={onOptions} />
           ) : (
@@ -316,6 +321,40 @@ function PhoneSettings({
   );
 }
 
+function LiarsSettings({
+  options,
+  onChange,
+}: {
+  options: LiarsOptions;
+  onChange: (options: LiarsOptions) => void;
+}) {
+  const set = (change: Partial<LiarsOptions>) => onChange({ ...options, ...change });
+  return (
+    <>
+      <Section label="Lives">
+        {LIAR_LIVES_OPTIONS.map((lives) => (
+          <Chip
+            key={lives}
+            label={String(lives)}
+            selected={options.lives === lives}
+            onPress={() => set({ lives })}
+          />
+        ))}
+      </Section>
+      <Section label="Time per turn">
+        {LIAR_SECONDS_OPTIONS.map((seconds) => (
+          <Chip
+            key={seconds}
+            label={`${seconds}s`}
+            selected={options.secondsPerTurn === seconds}
+            onPress={() => set({ secondsPerTurn: seconds })}
+          />
+        ))}
+      </Section>
+    </>
+  );
+}
+
 function WerewolfSettings({
   options,
   onChange,
@@ -375,6 +414,18 @@ function Summary({ setup }: { setup: GameSetup }) {
         <Text style={styles.title}>{name}</Text>
         <Text style={styles.muted}>
           {rounds} rounds · {secondsToPick}s each
+        </Text>
+      </View>
+    );
+  }
+  if (setup.gameId === 'liars') {
+    const { lives, secondsPerTurn } = setup.options;
+    return (
+      <View style={styles.summary}>
+        <Text style={styles.summaryEmoji}>🤥</Text>
+        <Text style={styles.title}>Liar's Table</Text>
+        <Text style={styles.muted}>
+          {lives} lives · {secondsPerTurn}s per turn
         </Text>
       </View>
     );

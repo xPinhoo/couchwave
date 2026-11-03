@@ -23,6 +23,13 @@ function settingRows(setup: GameSetup): { label: string; value: string }[] {
       { label: 'Time per picture', value: `${secondsToPick}s` },
     ];
   }
+  if (setup.gameId === 'liars') {
+    const { lives, secondsPerTurn } = setup.options;
+    return [
+      { label: 'Lives', value: String(lives) },
+      { label: 'Time per turn', value: `${secondsPerTurn}s` },
+    ];
+  }
   if (setup.gameId === 'werewolf') {
     const { secondsToDiscuss, revealRoles } = setup.options;
     return [

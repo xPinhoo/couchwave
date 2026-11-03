@@ -3,6 +3,7 @@ import {
   AVATAR_PRESETS,
   DEFAULT_COLOR_OPTIONS,
   DEFAULT_DRAW_OPTIONS,
+  DEFAULT_LIARS_OPTIONS,
   DEFAULT_PHONE_OPTIONS,
   DEFAULT_TRIVIA_OPTIONS,
   DEFAULT_WEREWOLF_OPTIONS,
@@ -176,15 +177,17 @@ export function openSetup(room: Room, gameId: GameId): Room {
   const setup: GameSetup =
     room.setup?.gameId === gameId
       ? { ...room.setup, readyIds: [] }
-      : gameId === 'color'
-        ? { gameId, options: DEFAULT_COLOR_OPTIONS, readyIds: [] }
-        : gameId === 'draw'
-          ? { gameId, options: DEFAULT_DRAW_OPTIONS, readyIds: [] }
-          : gameId === 'phone'
-            ? { gameId, options: DEFAULT_PHONE_OPTIONS, readyIds: [] }
-            : gameId === 'werewolf'
-              ? { gameId, options: DEFAULT_WEREWOLF_OPTIONS, readyIds: [] }
-              : { gameId, options: DEFAULT_TRIVIA_OPTIONS, readyIds: [] };
+      : gameId === 'liars'
+        ? { gameId, options: DEFAULT_LIARS_OPTIONS, readyIds: [] }
+        : gameId === 'color'
+          ? { gameId, options: DEFAULT_COLOR_OPTIONS, readyIds: [] }
+          : gameId === 'draw'
+            ? { gameId, options: DEFAULT_DRAW_OPTIONS, readyIds: [] }
+            : gameId === 'phone'
+              ? { gameId, options: DEFAULT_PHONE_OPTIONS, readyIds: [] }
+              : gameId === 'werewolf'
+                ? { gameId, options: DEFAULT_WEREWOLF_OPTIONS, readyIds: [] }
+                : { gameId, options: DEFAULT_TRIVIA_OPTIONS, readyIds: [] };
   return { ...room, status: 'setup', setup };
 }
 
